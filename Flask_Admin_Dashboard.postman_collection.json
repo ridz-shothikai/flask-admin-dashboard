@@ -1,0 +1,577 @@
+{
+	"info": {
+		"_postman_id": "flask-admin-dashboard-001",
+		"name": "Flask Admin Dashboard",
+		"description": "Complete API collection for Flask Admin Dashboard with authentication, user management, application management, and dashboard endpoints.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set(\"access_token\", response.access_token);",
+									"    pm.collectionVariables.set(\"refresh_token\", response.refresh_token);",
+									"    pm.collectionVariables.set(\"user_id\", response.user.id);",
+									"    console.log(\"Login successful!\");",
+									"    console.log(\"User ID:\", response.user.id);",
+									"    console.log(\"User Role:\", response.user.role);",
+									"} else {",
+									"    console.log(\"Login failed:\", pm.response.json());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"Admin123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "login"]
+						},
+						"description": "Login with email and password. Tokens are automatically saved to collection variables."
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set(\"access_token\", response.access_token);",
+									"    console.log(\"Token refreshed successfully!\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{refresh_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/refresh",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "refresh"]
+						},
+						"description": "Refresh access token using refresh token."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current User",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "me"]
+						},
+						"description": "Get current authenticated user information."
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/logout",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "logout"]
+						},
+						"description": "Logout current user."
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints for login, logout, and token management."
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users?page=1&per_page=10&role=admin&status=active",
+							"host": ["{{base_url}}"],
+							"path": ["users"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "per_page",
+									"value": "10"
+								},
+								{
+									"key": "role",
+									"value": "admin",
+									"disabled": true
+								},
+								{
+									"key": "status",
+									"value": "active",
+									"disabled": true
+								},
+								{
+									"key": "search",
+									"value": "",
+									"disabled": true
+								},
+								{
+									"key": "sort",
+									"value": "created_date",
+									"disabled": true
+								},
+								{
+									"key": "order",
+									"value": "desc",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Get all users with pagination and filtering. Requires admin/superadmin role."
+					},
+					"response": []
+				},
+				{
+					"name": "Create User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set(\"last_created_user_id\", response.user.id);",
+									"    console.log(\"User created:\", response.user.email);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"newuser@example.com\",\n    \"password\": \"Password123!\",\n    \"role\": \"user\",\n    \"status\": \"active\",\n    \"first_name\": \"Jane\",\n    \"last_name\": \"Doe\",\n    \"application_ids\": [1, 2]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users",
+							"host": ["{{base_url}}"],
+							"path": ["users"]
+						},
+						"description": "Create a new user. Requires admin/superadmin role."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["users", "{{user_id}}"]
+						},
+						"description": "Get a specific user by ID. Requires admin/superadmin role."
+					},
+					"response": []
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"first_name\": \"Updated\",\n    \"last_name\": \"Name\",\n    \"role\": \"admin\",\n    \"status\": \"active\",\n    \"application_ids\": [1, 2, 3]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["users", "{{user_id}}"]
+						},
+						"description": "Update a user. All fields are optional. Requires admin/superadmin role."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["users", "{{user_id}}"]
+						},
+						"description": "Delete a user. Cannot delete your own account. Requires admin/superadmin role."
+					},
+					"response": []
+				}
+			],
+			"description": "User management endpoints for CRUD operations."
+		},
+		{
+			"name": "Applications",
+			"item": [
+				{
+					"name": "Get All Applications",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/applications?page=1&per_page=10&status=active",
+							"host": ["{{base_url}}"],
+							"path": ["applications"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "per_page",
+									"value": "10"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"disabled": true
+								},
+								{
+									"key": "status",
+									"value": "active",
+									"disabled": true
+								},
+								{
+									"key": "sort",
+									"value": "name",
+									"disabled": true
+								},
+								{
+									"key": "order",
+									"value": "asc",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Get all applications with pagination and filtering."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Application",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set(\"last_created_app_id\", response.application.id);",
+									"    console.log(\"Application created:\", response.application.name);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"New Application\",\n    \"description\": \"Application description\",\n    \"url\": \"https://app.example.com\",\n    \"status\": \"active\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/applications",
+							"host": ["{{base_url}}"],
+							"path": ["applications"]
+						},
+						"description": "Create a new application. Requires admin/superadmin role."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Application by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/applications/1",
+							"host": ["{{base_url}}"],
+							"path": ["applications", "1"]
+						},
+						"description": "Get a specific application by ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Application",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Application\",\n    \"description\": \"Updated description\",\n    \"url\": \"https://updated.example.com\",\n    \"status\": \"maintenance\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/applications/1",
+							"host": ["{{base_url}}"],
+							"path": ["applications", "1"]
+						},
+						"description": "Update an application. All fields are optional. Requires admin/superadmin role."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Application",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/applications/1",
+							"host": ["{{base_url}}"],
+							"path": ["applications", "1"]
+						},
+						"description": "Delete an application. Requires admin/superadmin role."
+					},
+					"response": []
+				}
+			],
+			"description": "Application management endpoints for CRUD operations."
+		},
+		{
+			"name": "Dashboard",
+			"item": [
+				{
+					"name": "Get Dashboard Stats",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const stats = pm.response.json();",
+									"    console.log(\"Total users:\", stats.users.total);",
+									"    console.log(\"Active users:\", stats.users.active);",
+									"    console.log(\"Total applications:\", stats.applications.total);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/dashboard/stats",
+							"host": ["{{base_url}}"],
+							"path": ["dashboard", "stats"]
+						},
+						"description": "Get dashboard statistics including user counts, application counts, and activity metrics."
+					},
+					"response": []
+				},
+				{
+					"name": "Get System Health",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const health = pm.response.json();",
+									"    console.log(\"CPU Usage:\", health.cpu.usage_percent + \"%\");",
+									"    console.log(\"Memory Usage:\", health.memory.usage_percent + \"%\");",
+									"    console.log(\"Disk Usage:\", health.disk.usage_percent + \"%\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/dashboard/health",
+							"host": ["{{base_url}}"],
+							"path": ["dashboard", "health"]
+						},
+						"description": "Get real-time system health metrics (CPU, memory, disk usage)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Recent Activity",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/dashboard/activity",
+							"host": ["{{base_url}}"],
+							"path": ["dashboard", "activity"]
+						},
+						"description": "Get recent activity logs (last 50 activities)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Metrics History",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/dashboard/metrics/history",
+							"host": ["{{base_url}}"],
+							"path": ["dashboard", "metrics", "history"]
+						},
+						"description": "Get historical system metrics (last 24 hours)."
+					},
+					"response": []
+				}
+			],
+			"description": "Dashboard endpoints for statistics, health monitoring, and activity logs."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global pre-request script",
+					"// Can be used for token refresh logic if needed"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test script for error handling",
+					"if (pm.response.code >= 400) {",
+					"    const error = pm.response.json();",
+					"    console.error(\"Error:\", error.error.code, \"-\", error.error.message);",
+					"    ",
+					"    // Handle token expiration",
+					"    if (pm.response.code === 401 && error.error.code === \"UNAUTHORIZED\") {",
+					"        console.log(\"Token may have expired. Please refresh or login again.\");",
+					"    }",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000/api",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "last_created_user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "last_created_app_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{access_token}}",
+				"type": "string"
+			}
+		]
+	}
+}
+
