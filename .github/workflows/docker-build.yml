@@ -5,6 +5,8 @@ on:
     branches:
       - main
       - all_roles_api
+      - verify_token_api
+      
 
 jobs:
   build:
