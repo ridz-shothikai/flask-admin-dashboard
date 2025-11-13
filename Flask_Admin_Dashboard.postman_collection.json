@@ -93,6 +93,61 @@
 					"response": []
 				},
 				{
+					"name": "Verify Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.valid) {",
+									"        console.log(\"Token is valid!\");",
+									"        console.log(\"User:\", response.user.email);",
+									"        console.log(\"Role:\", response.token_info.role);",
+									"        console.log(\"Expires at:\", response.token_info.expires_at);",
+									"    } else {",
+									"        console.log(\"Token is invalid:\", response.error.message);",
+									"        console.log(\"Error code:\", response.error.code);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"{{access_token}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/verify",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "verify"]
+						},
+						"description": "Verify JWT token validity. Accepts token in Authorization header (Bearer token), request body (POST), or query parameter (GET). Returns token validity, user info, and token metadata including expiration time."
+					},
+					"response": []
+				},
+				{
 					"name": "Get Current User",
 					"request": {
 						"method": "GET",

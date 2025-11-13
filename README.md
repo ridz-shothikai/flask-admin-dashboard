@@ -449,7 +449,68 @@ Authorization: Bearer {{refresh_token}}
 pm.environment.set("access_token", pm.response.json().access_token);
 ```
 
-### 4. Get Current User
+### 4. Verify Token
+
+**Endpoint:** `POST /api/auth/verify` or `GET /api/auth/verify`
+
+**Option 1 - Using Authorization Header:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Option 2 - Using Request Body (POST):**
+```json
+{
+  "token": "eyJ0eXAiOiJKV1QiLCJhbGc..."
+}
+```
+
+**Option 3 - Using Query Parameter (GET):**
+```
+GET /api/auth/verify?token=eyJ0eXAiOiJKV1QiLCJhbGc...
+```
+
+**Response (Valid Token):**
+```json
+{
+  "valid": true,
+  "token_info": {
+    "user_id": "1",
+    "role": "admin",
+    "token_type": "access",
+    "expires_at": "2024-01-01T12:00:00",
+    "issued_at": "2024-01-01T11:00:00"
+  },
+  "user": {
+    "id": 1,
+    "email": "admin@example.com",
+    "role": "admin",
+    "status": "active",
+    ...
+  }
+}
+```
+
+**Response (Invalid/Expired Token):**
+```json
+{
+  "valid": false,
+  "error": {
+    "code": "TOKEN_EXPIRED",
+    "message": "Token has expired"
+  }
+}
+```
+
+**Postman Setup:**
+1. Create request: `POST {{base_url}}/auth/verify` or `GET {{base_url}}/auth/verify`
+2. Authorization → Bearer Token → `{{access_token}}`
+   OR
+   Body (raw JSON) → `{"token": "{{access_token}}"}`
+   OR
+   Query Params → `token: {{access_token}}`
+
+### 5. Get Current User
 
 **Endpoint:** `GET /api/auth/me`
 
@@ -469,7 +530,7 @@ Authorization: Bearer {{access_token}}
 }
 ```
 
-### 5. Logout
+### 6. Logout
 
 **Endpoint:** `POST /api/auth/logout`
 
@@ -501,6 +562,20 @@ Authorization: Bearer {{access_token}}
 - **URL:** `/api/auth/refresh`
 - **Auth:** Refresh token required
 - **Body:** None
+
+#### Verify Token
+- **Method:** `POST` or `GET`
+- **URL:** `/api/auth/verify`
+- **Auth:** Not required (token provided in header, body, or query)
+- **Body (POST):** 
+  ```json
+  {
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGc..."
+  }
+  ```
+- **Query Parameters (GET):**
+  - `token` (string, required): JWT token to verify
+- **Response:** Returns token validity, user info, and token metadata
 
 #### Get Current User
 - **Method:** `GET`

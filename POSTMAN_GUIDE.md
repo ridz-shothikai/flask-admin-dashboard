@@ -136,7 +136,85 @@ if (pm.response.code === 200) {
 }
 ```
 
-### 3. Get Current User
+### 3. Verify Token Request
+
+**Create Request:**
+- Method: `POST` or `GET`
+- URL: `{{base_url}}/auth/verify`
+- Folder: **Authentication**
+
+**Option 1 - Using Authorization Header:**
+- Authorization: Type **Bearer Token**
+- Token: `{{access_token}}`
+
+**Option 2 - Using Request Body (POST only):**
+- Body → raw → JSON:
+```json
+{
+  "token": "{{access_token}}"
+}
+```
+
+**Option 3 - Using Query Parameter (GET only):**
+- Params:
+  - Key: `token`
+  - Value: `{{access_token}}`
+
+**Tests Tab:**
+```javascript
+if (pm.response.code === 200) {
+    const response = pm.response.json();
+    if (response.valid) {
+        console.log("Token is valid!");
+        console.log("User:", response.user.email);
+        console.log("Role:", response.token_info.role);
+        console.log("Expires at:", response.token_info.expires_at);
+    } else {
+        console.log("Token is invalid:", response.error.message);
+    }
+}
+```
+
+**Expected Response (Valid Token):**
+```json
+{
+  "valid": true,
+  "token_info": {
+    "user_id": "1",
+    "role": "admin",
+    "token_type": "access",
+    "expires_at": "2024-01-01T12:00:00",
+    "issued_at": "2024-01-01T11:00:00"
+  },
+  "user": {
+    "id": 1,
+    "email": "admin@example.com",
+    "role": "admin",
+    "status": "active",
+    ...
+  }
+}
+```
+
+**Expected Response (Invalid/Expired Token):**
+```json
+{
+  "valid": false,
+  "error": {
+    "code": "TOKEN_EXPIRED",
+    "message": "Token has expired"
+  }
+}
+```
+
+**Error Codes:**
+- `TOKEN_MISSING`: Token not provided
+- `TOKEN_EXPIRED`: Token has expired
+- `INVALID_TOKEN`: Token is invalid or malformed
+- `USER_NOT_FOUND`: User associated with token not found
+- `ACCOUNT_INACTIVE`: User account is inactive
+
+### 4. Get Current User
 
 **Create Request:**
 - Method: `GET`
@@ -145,7 +223,7 @@ if (pm.response.code === 200) {
 
 **Authorization:** Inherit from collection (uses `{{access_token}}`)
 
-### 4. Logout
+### 5. Logout
 
 **Create Request:**
 - Method: `POST`

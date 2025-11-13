@@ -1,11 +1,11 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
     jwt_required,
-    get_jwt_identity,
-    get_jwt
+    get_jwt_identity
 )
+import jwt
 from datetime import datetime
 from app import db
 from app.models import User, ActivityLog
@@ -126,4 +126,120 @@ def get_current_user():
         }), 404
 
     return jsonify(user.to_dict()), 200
+
+
+@auth_bp.route('/verify', methods=['POST', 'GET'])
+def verify_token():
+    """Verify JWT token validity"""
+    # Get token from Authorization header or request body
+    token = None
+    
+    # Try to get from Authorization header
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        token = auth_header.split(' ')[1]
+    
+    # If not in header, try to get from request body (for POST) or query params (for GET)
+    if not token:
+        if request.is_json and 'token' in request.json:
+            token = request.json.get('token')
+        elif 'token' in request.args:
+            token = request.args.get('token')
+    
+    if not token:
+        return jsonify({
+            'error': {
+                'code': 'TOKEN_MISSING',
+                'message': 'Token is required. Provide it in Authorization header (Bearer <token>) or in request body/query as "token"'
+            }
+        }), 400
+    
+    try:
+        # Decode and verify the token using PyJWT
+        jwt_secret_key = current_app.config.get('JWT_SECRET_KEY')
+        decoded_token = jwt.decode(
+            token,
+            jwt_secret_key,
+            algorithms=['HS256'],
+            options={'verify_exp': True}
+        )
+        
+        # Get user information
+        user_id = decoded_token.get('sub')
+        if user_id:
+            user = User.query.get(int(user_id))
+            if not user:
+                return jsonify({
+                    'valid': False,
+                    'error': {
+                        'code': 'USER_NOT_FOUND',
+                        'message': 'User associated with token not found'
+                    }
+                }), 200
+            
+            # Check if user is active
+            if user.status != 'active':
+                return jsonify({
+                    'valid': False,
+                    'error': {
+                        'code': 'ACCOUNT_INACTIVE',
+                        'message': 'User account is inactive'
+                    }
+                }), 200
+            
+            # Get token claims
+            role = decoded_token.get('role', 'user')
+            exp = decoded_token.get('exp')
+            iat = decoded_token.get('iat')
+            token_type = decoded_token.get('type', 'access')
+            
+            # Calculate expiration time
+            expires_at = None
+            if exp:
+                expires_at = datetime.fromtimestamp(exp).isoformat()
+            
+            return jsonify({
+                'valid': True,
+                'token_info': {
+                    'user_id': user_id,
+                    'role': role,
+                    'token_type': token_type,
+                    'expires_at': expires_at,
+                    'issued_at': datetime.fromtimestamp(iat).isoformat() if iat else None
+                },
+                'user': user.to_dict()
+            }), 200
+        else:
+            return jsonify({
+                'valid': False,
+                'error': {
+                    'code': 'INVALID_TOKEN',
+                    'message': 'Token does not contain user identity'
+                }
+            }), 200
+            
+    except jwt.ExpiredSignatureError:
+        return jsonify({
+            'valid': False,
+            'error': {
+                'code': 'TOKEN_EXPIRED',
+                'message': 'Token has expired'
+            }
+        }), 200
+    except jwt.InvalidTokenError as e:
+        return jsonify({
+            'valid': False,
+            'error': {
+                'code': 'INVALID_TOKEN',
+                'message': f'Token is invalid: {str(e)}'
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'valid': False,
+            'error': {
+                'code': 'TOKEN_ERROR',
+                'message': f'Error verifying token: {str(e)}'
+            }
+        }), 200
 
