@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - all_roles_api
 
 jobs:
   build:
