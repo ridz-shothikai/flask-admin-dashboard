@@ -404,7 +404,7 @@ def saml_acs():
             return redirect(f"{frontend_url}/auth/error?message=SAML validation failed")
         
         # Check if user is authenticated
-        if not auth.is_authenticated:
+        if not auth.is_authenticated():
             current_app.logger.error("SAML authentication failed - user not authenticated")
             frontend_url = current_app.config.get('FRONTEND_URL')
             return redirect(f"{frontend_url}/auth/error?message=Authentication failed")

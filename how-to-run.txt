@@ -1,0 +1,25 @@
+first setup venv and requirements.txt
+then run python3 run.py
+
+
+1. flask shell
+
+2.
+
+from app import db
+from app.models import User
+
+# Create user without username
+user = User(
+    email='admin@shothik.ai',
+    first_name='Admin',
+    last_name='User'
+)
+user.set_password('temporary-password-123')
+db.session.add(user)
+db.session.commit()
+print(f"✅ User created: {user.email} (ID: {user.id})")
+
+3. 
+
+http://localhost:5000/api/auth/saml/login
