@@ -7,7 +7,6 @@ from flask_jwt_extended import (
 )
 import jwt
 from datetime import datetime
-from app import db
 from app.models import User, ActivityLog
 from app.schemas.user_schema import LoginSchema
 from app.utils.validation import validate_json_body
@@ -20,7 +19,7 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 def login(validated_data: LoginSchema):
     """User login endpoint"""
     # Find user
-    user = User.query.filter_by(email=validated_data.email).first()
+    user = User.get_by_email(validated_data.email)
     if not user or not user.check_password(validated_data.password):
         return jsonify({
             'error': {
@@ -40,7 +39,7 @@ def login(validated_data: LoginSchema):
 
     # Update last login
     user.last_login = datetime.utcnow()
-    db.session.commit()
+    user.save()
 
     # Create tokens (identity must be string)
     access_token = create_access_token(
@@ -57,8 +56,7 @@ def login(validated_data: LoginSchema):
         ip_address=request.remote_addr,
         user_agent=request.headers.get('User-Agent')
     )
-    db.session.add(activity)
-    db.session.commit()
+    activity.save()
 
     return jsonify({
         'message': 'Login successful',
@@ -73,8 +71,8 @@ def login(validated_data: LoginSchema):
 def refresh():
     """Refresh access token"""
     identity = get_jwt_identity()
-    # Identity comes as string from JWT, convert to int for query
-    user = User.query.get(int(identity))
+    # Identity comes as string from JWT
+    user = User.get_by_id(identity)
     if user:
         access_token = create_access_token(
             identity=str(user.id),
@@ -92,8 +90,8 @@ def refresh():
 def logout():
     """User logout endpoint"""
     user_id = get_jwt_identity()
-    # JWT identity is string, convert to int for database query
-    user = User.query.get(int(user_id))
+    # JWT identity is string
+    user = User.get_by_id(user_id)
     if user:
         # Log activity
         activity = ActivityLog(
@@ -102,8 +100,7 @@ def logout():
             description=f'User {user.email} logged out',
             ip_address=request.remote_addr
         )
-        db.session.add(activity)
-        db.session.commit()
+        activity.save()
 
     return jsonify({
         'message': 'Logout successful'
@@ -115,8 +112,8 @@ def logout():
 def get_current_user():
     """Get current authenticated user"""
     user_id = get_jwt_identity()
-    # JWT identity is string, convert to int for database query
-    user = User.query.get(int(user_id))
+    # JWT identity is string
+    user = User.get_by_id(user_id)
     if not user:
         return jsonify({
             'error': {
@@ -167,7 +164,7 @@ def verify_token():
         # Get user information
         user_id = decoded_token.get('sub')
         if user_id:
-            user = User.query.get(int(user_id))
+            user = User.get_by_id(user_id)
             if not user:
                 return jsonify({
                     'valid': False,
@@ -242,4 +239,3 @@ def verify_token():
                 'message': f'Error verifying token: {str(e)}'
             }
         }), 200
-

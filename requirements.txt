@@ -6,9 +6,11 @@ Flask-RESTX==1.3.0
 Flask-JWT-Extended==4.6.0
 Flask-CORS==4.0.0
 
-# Database
-psycopg2-binary==2.9.9
-alembic==1.13.1
+# Database - Firestore
+firebase-admin==6.6.0
+# google-cloud-firestore is included as a dependency of firebase-admin
+# but we specify it explicitly for custom database support
+google-cloud-firestore>=2.19.0
 
 # Validation & Serialization - PYDANTIC
 pydantic==2.5.3

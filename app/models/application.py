@@ -1,40 +1,63 @@
-from app import db
+from app.models.base import BaseModel
 from datetime import datetime
+from typing import Optional
 
 
-class Application(db.Model):
-    __tablename__ = 'applications'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False, index=True)
-    description = db.Column(db.Text)
-    url = db.Column(db.String(255))
-    status = db.Column(
-        db.String(20),
-        nullable=False,
-        default='active'
-    )  # active, inactive, maintenance
-    # Timestamps
-    created_date = db.Column(db.DateTime, default=datetime.utcnow)
-    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    # Relationships
-    users = db.relationship(
-        'User',
-        secondary='user_applications',
-        back_populates='assigned_applications'
-    )
-
+class Application(BaseModel):
+    """Application model for Firestore"""
+    collection_name = 'applications'
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Set defaults
+        if 'status' not in self._data:
+            self._data['status'] = 'active'
+        if 'created_date' not in self._data:
+            self._data['created_date'] = datetime.utcnow()
+        if 'last_updated' not in self._data:
+            self._data['last_updated'] = datetime.utcnow()
+    
     def to_dict(self):
         """Convert to dictionary"""
+        # Count users assigned to this application
+        user_count = self.get_user_count()
+        
         return {
             'id': self.id,
             'name': self.name,
-            'description': self.description,
-            'url': self.url,
+            'description': self.description if hasattr(self, 'description') else None,
+            'url': self.url if hasattr(self, 'url') else None,
             'status': self.status,
-            'created_date': self.created_date.isoformat() if self.created_date else None,
-            'last_updated': self.last_updated.isoformat() if self.last_updated else None,
-            'user_count': len(self.users)
+            'created_date': self.created_date.isoformat() if hasattr(self, 'created_date') and self.created_date else None,
+            'last_updated': self.last_updated.isoformat() if hasattr(self, 'last_updated') and self.last_updated else None,
+            'user_count': user_count
         }
-
+    
+    @classmethod
+    def get_by_name(cls, name: str):
+        """Get application by name"""
+        apps = cls.query(name=name)
+        return apps[0] if apps else None
+    
+    @classmethod
+    def name_exists(cls, name: str, exclude_id: Optional[str] = None) -> bool:
+        """Check if name already exists"""
+        apps = cls.query(name=name)
+        if exclude_id:
+            apps = [a for a in apps if a.id != exclude_id]
+        return len(apps) > 0
+    
+    def get_user_count(self) -> int:
+        """Get count of users assigned to this application"""
+        from app.db import get_db
+        db = get_db()
+        relationships = db.collection('user_applications').where('application_id', '==', self.id).stream()
+        return len(list(relationships))
+    
+    def save(self) -> str:
+        """Override save to update last_updated"""
+        self.last_updated = datetime.utcnow()
+        return super().save()
+    
     def __repr__(self):
-        return f'<Application {self.name}>'
+        return f'<Application {self.name if hasattr(self, "name") else "Unknown"}>'

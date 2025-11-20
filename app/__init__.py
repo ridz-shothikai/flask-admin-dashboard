@@ -1,13 +1,9 @@
 import os
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 
 # Initialize extensions
-db = SQLAlchemy()
-migrate = Migrate()
 jwt = JWTManager()
 
 
@@ -25,10 +21,12 @@ def create_app(config_object=None):
         app.config.from_object(config.get(env, config['default']))
 
     # Initialize extensions
-    db.init_app(app)
-    migrate.init_app(app, db)
     jwt.init_app(app)
     CORS(app)
+    
+    # Initialize Firestore
+    from app.db import init_firestore
+    init_firestore(app)
 
     # Register error handlers
     from app.utils.error_handler import register_error_handlers

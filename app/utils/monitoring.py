@@ -1,6 +1,5 @@
 import psutil
 from datetime import datetime
-from app import db
 from app.models import SystemMetric
 
 
@@ -53,7 +52,6 @@ def save_system_metrics():
         disk_total=health['disk']['total_bytes'],
         disk_used=health['disk']['used_bytes']
     )
-    db.session.add(metric)
-    db.session.commit()
+    metric.save()
     return metric
 

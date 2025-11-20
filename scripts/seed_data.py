@@ -1,5 +1,6 @@
-from app import create_app, db
+from app import create_app
 from app.models import User, Application
+from app.db import init_firestore
 from datetime import datetime, timedelta
 
 
@@ -7,48 +8,55 @@ def seed_database():
     """Seed the database with sample data"""
     app = create_app()
     with app.app_context():
-        # Clear existing data
-        print("Clearing existing data...")
-        db.drop_all()
-        db.create_all()
+        # Initialize Firestore
+        init_firestore(app)
+        
+        # Note: Firestore doesn't require clearing data like SQL databases
+        # If you want to clear, you'd need to delete collections manually
+        print("Seeding Firestore database...")
 
         # Create Applications
         print("Creating applications...")
-        applications = [
-            Application(
-                name='Dashboard',
-                description='Main admin dashboard',
-                url='https://dashboard.example.com',
-                status='active'
-            ),
-            Application(
-                name='Region 14',
-                description='Region 14 management system',
-                url='https://region14.example.com',
-                status='active'
-            ),
-            Application(
-                name='Region 2',
-                description='Region 2 management system',
-                url='https://region2.example.com',
-                status='active'
-            ),
-            Application(
-                name='Analytics',
-                description='Analytics and reporting platform',
-                url='https://analytics.example.com',
-                status='maintenance'
-            ),
-            Application(
-                name='Legacy System',
-                description='Old system being phased out',
-                url='https://legacy.example.com',
-                status='inactive'
-            )
+        applications_data = [
+            {
+                'name': 'Dashboard',
+                'description': 'Main admin dashboard',
+                'url': 'https://dashboard.example.com',
+                'status': 'active'
+            },
+            {
+                'name': 'Region 14',
+                'description': 'Region 14 management system',
+                'url': 'https://region14.example.com',
+                'status': 'active'
+            },
+            {
+                'name': 'Region 2',
+                'description': 'Region 2 management system',
+                'url': 'https://region2.example.com',
+                'status': 'active'
+            },
+            {
+                'name': 'Analytics',
+                'description': 'Analytics and reporting platform',
+                'url': 'https://analytics.example.com',
+                'status': 'maintenance'
+            },
+            {
+                'name': 'Legacy System',
+                'description': 'Old system being phased out',
+                'url': 'https://legacy.example.com',
+                'status': 'inactive'
+            }
         ]
-        for app_item in applications:
-            db.session.add(app_item)
-        db.session.commit()
+        
+        applications = {}
+        for app_data in applications_data:
+            app = Application(**app_data)
+            app.save()
+            applications[app_data['name']] = app
+            print(f"  Created application: {app_data['name']} (ID: {app.id})")
+        
         print(f"Created {len(applications)} applications")
 
         # Create Users
@@ -126,13 +134,15 @@ def seed_database():
                 user.last_login = datetime.utcnow() - timedelta(days=days_ago)
 
             # Assign applications
+            assigned_app_ids = []
             for app_name in user_data['apps']:
-                app = Application.query.filter_by(name=app_name).first()
-                if app:
-                    user.assigned_applications.append(app)
+                if app_name in applications:
+                    assigned_app_ids.append(applications[app_name].id)
+            user.assigned_application_ids = assigned_app_ids
 
-            db.session.add(user)
-        db.session.commit()
+            user.save()
+            print(f"  Created user: {user_data['email']} (ID: {user.id})")
+
         print(f"Created {len(users_data)} users")
 
         print("\nDatabase seeded successfully!")
@@ -144,4 +154,3 @@ def seed_database():
 
 if __name__ == '__main__':
     seed_database()
-

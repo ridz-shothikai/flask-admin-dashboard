@@ -9,10 +9,9 @@ class Config:
     """Base configuration"""
     # Flask
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-prod'
-    # Database
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'postgresql://localhost/admin_dashboard'
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Firestore Database
+    FIREBASE_CREDENTIALS_PATH = os.environ.get('FIREBASE_CREDENTIALS_PATH', 'shothik-project-2cc7a51b6844.json')
+    FIRESTORE_DATABASE_NAME = os.environ.get('FIRESTORE_DATABASE_NAME', '(default)')
     # JWT
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-key'
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(

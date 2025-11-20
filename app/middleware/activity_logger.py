@@ -1,7 +1,6 @@
-from flask import request, g
+from flask import request
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 from functools import wraps
-from app import db
 from app.models import ActivityLog
 
 
@@ -20,8 +19,7 @@ def log_activity(event_type, description):
         ip_address=request.remote_addr,
         user_agent=request.headers.get('User-Agent')
     )
-    db.session.add(activity)
-    db.session.commit()
+    activity.save()
     return activity
 
 
@@ -41,4 +39,3 @@ def activity_required(event_type):
             return result
         return decorated_function
     return decorator
-

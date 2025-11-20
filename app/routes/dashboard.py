@@ -1,8 +1,6 @@
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required
-from sqlalchemy import func
 from datetime import datetime, timedelta
-from app import db
 from app.models import User, Application, ActivityLog, SystemMetric
 from app.utils.monitoring import get_system_health
 
@@ -14,32 +12,34 @@ dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
 def get_stats():
     """Get dashboard statistics"""
     # User counts
-    total_users = User.query.count()
-    active_users = User.query.filter_by(status='active').count()
-    inactive_users = User.query.filter_by(status='inactive').count()
-
+    all_users = User.get_all()
+    total_users = len(all_users)
+    active_users = len([u for u in all_users if hasattr(u, 'status') and u.status == 'active'])
+    inactive_users = len([u for u in all_users if hasattr(u, 'status') and u.status == 'inactive'])
+    
     # Users by role
-    users_by_role = db.session.query(
-        User.role,
-        func.count(User.id)
-    ).group_by(User.role).all()
-    role_counts = {role: count for role, count in users_by_role}
-
+    role_counts = {}
+    for user in all_users:
+        if hasattr(user, 'role'):
+            role = user.role
+            role_counts[role] = role_counts.get(role, 0) + 1
+    
     # Application counts
-    total_applications = Application.query.count()
-    active_applications = Application.query.filter_by(status='active').count()
-
+    all_apps = Application.get_all()
+    total_applications = len(all_apps)
+    active_applications = len([app for app in all_apps if hasattr(app, 'status') and app.status == 'active'])
+    
     # Recent activity count (last 24 hours)
     yesterday = datetime.utcnow() - timedelta(days=1)
-    recent_activities = ActivityLog.query.filter(
-        ActivityLog.timestamp >= yesterday
-    ).count()
-
+    recent_activities = ActivityLog.get_by_date_range(yesterday)
+    recent_activity_count = len(recent_activities)
+    
     # Recent logins (last 7 days)
     week_ago = datetime.utcnow() - timedelta(days=7)
-    recent_logins = User.query.filter(
-        User.last_login >= week_ago
-    ).count()
+    recent_logins = len([
+        u for u in all_users
+        if hasattr(u, 'last_login') and u.last_login and u.last_login >= week_ago
+    ])
 
     return jsonify({
         'users': {
@@ -54,7 +54,7 @@ def get_stats():
             'active': active_applications
         },
         'activity': {
-            'recent_count': recent_activities
+            'recent_count': recent_activity_count
         }
     }), 200
 
@@ -72,9 +72,7 @@ def get_health():
 def get_activity():
     """Get recent activity logs"""
     # Get last 50 activities
-    activities = ActivityLog.query.order_by(
-        ActivityLog.timestamp.desc()
-    ).limit(50).all()
+    activities = ActivityLog.get_recent(limit=50)
 
     return jsonify({
         'activities': [activity.to_dict() for activity in activities]
@@ -86,11 +84,8 @@ def get_activity():
 def get_metrics_history():
     """Get historical system metrics (last 24 hours)"""
     yesterday = datetime.utcnow() - timedelta(days=1)
-    metrics = SystemMetric.query.filter(
-        SystemMetric.timestamp >= yesterday
-    ).order_by(SystemMetric.timestamp.asc()).all()
+    metrics = SystemMetric.get_by_date_range(yesterday)
 
     return jsonify({
         'metrics': [metric.to_dict() for metric in metrics]
     }), 200
-
