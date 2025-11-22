@@ -10,7 +10,7 @@ ENV/
 build/
 dist/
 *.egg-info/
-
+shothik-project-2cc7a51b6844.json
 # Flask
 instance/
 .webassets-cache
