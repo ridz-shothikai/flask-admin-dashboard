@@ -17,7 +17,18 @@ class UserCreateSchema(BaseModel):
     status: Literal['active', 'inactive'] = 'active'
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    application_ids: List[int] = Field(default_factory=list)
+    application_ids: List[str] = Field(default_factory=list, description="List of application IDs (strings)")
+    
+    @field_validator('application_ids', mode='before')
+    @classmethod
+    def validate_application_ids(cls, v):
+        """Ensure application_ids are strings, not integers"""
+        if v is None:
+            return []
+        if isinstance(v, list):
+            # Convert all items to strings explicitly
+            return [str(item) for item in v]
+        return v
 
     @field_validator('password')
     @classmethod
@@ -36,7 +47,18 @@ class UserUpdateSchema(BaseModel):
     status: Optional[Literal['active', 'inactive']] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    application_ids: Optional[List[int]] = None
+    application_ids: Optional[List[str]] = None
+    
+    @field_validator('application_ids', mode='before')
+    @classmethod
+    def validate_application_ids(cls, v):
+        """Ensure application_ids are strings, not integers"""
+        if v is None:
+            return None
+        if isinstance(v, list):
+            # Convert all items to strings explicitly
+            return [str(item) for item in v]
+        return v
 
     @model_validator(mode='after')
     def check_at_least_one_field(self):
@@ -65,7 +87,7 @@ class UserQuerySchema(BaseModel):
 
 class UserResponseSchema(BaseModel):
     """User response schema"""
-    id: int
+    id: str
     email: str
     role: str
     status: str

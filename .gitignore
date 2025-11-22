@@ -31,6 +31,10 @@ instance/
 
 # Logs
 *.log
+logs/
+
+# SAML Configuration (contains sensitive data)
+saml/settings.json
 
 # OS
 .DS_Store

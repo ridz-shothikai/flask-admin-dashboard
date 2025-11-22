@@ -34,7 +34,7 @@ class ApplicationQuerySchema(BaseModel):
 
 class ApplicationResponseSchema(BaseModel):
     """Application response schema"""
-    id: int
+    id: str
     name: str
     description: Optional[str]
     url: Optional[str]

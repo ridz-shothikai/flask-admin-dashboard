@@ -1,0 +1,23 @@
+{
+  "sp": {
+    "entityId": "https://YOUR-DOMAIN.com/auth/saml/metadata",
+    "assertionConsumerService": {
+      "url": "https://YOUR-DOMAIN.com/auth/saml/callback",
+      "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+    }
+  },
+  "idp": {
+    "entityId": "[PASTE Identity Provider Issuer HERE]",
+    "singleSignOnService": {
+      "url": "[PASTE Identity Provider Single Sign-On URL HERE]",
+      "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+    },
+    "x509cert": "[PASTE X.509 Certificate HERE - remove BEGIN/END lines]"
+  },
+  "security": {
+    "authnRequestsSigned": false,
+    "wantAssertionsSigned": true,
+    "wantMessageSigned": false
+  }
+}
+
