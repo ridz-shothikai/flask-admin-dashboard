@@ -306,6 +306,8 @@ def get_roles():
         'roles': [
             {'value': 'user', 'label': 'User'},
             {'value': 'admin', 'label': 'Admin'},
-            {'value': 'superadmin', 'label': 'Super Admin'}
+            {'value': 'superadmin', 'label': 'Super Admin'},
+            {'value': 'manager', 'label': 'Manager'},
+            {'value': 'clark', 'label': 'Clark'}
         ]
     }), 200
