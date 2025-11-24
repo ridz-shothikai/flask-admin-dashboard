@@ -13,7 +13,7 @@ class UserCreateSchema(BaseModel):
     """User creation schema"""
     email: EmailStr
     password: str = Field(..., min_length=6)
-    role: Literal['user', 'admin', 'superadmin'] = 'user'
+    role: Literal['user', 'admin', 'superadmin', 'manager', 'clark'] = 'user'
     status: Literal['active', 'inactive'] = 'active'
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -55,7 +55,7 @@ class UserUpdateSchema(BaseModel):
     """User update schema - all fields optional"""
     email: Optional[EmailStr] = None
     password: Optional[str] = Field(None, min_length=6)
-    role: Optional[Literal['user', 'admin', 'superadmin']] = None
+    role: Optional[Literal['user', 'admin', 'superadmin', 'manager', 'clark']] = None
     status: Optional[Literal['active', 'inactive']] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -100,7 +100,7 @@ class UserQuerySchema(BaseModel):
     page: int = Field(default=1, ge=1)
     per_page: int = Field(default=20, ge=1, le=100)
     search: Optional[str] = None
-    role: Optional[Literal['user', 'admin', 'superadmin']] = None
+    role: Optional[Literal['user', 'admin', 'superadmin', 'manager', 'clark']] = None
     status: Optional[Literal['active', 'inactive']] = None
     sort: str = 'created_date'
     order: Literal['asc', 'desc'] = 'desc'
