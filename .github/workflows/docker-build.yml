@@ -9,6 +9,7 @@ on:
       - okta-implementation-firestore-fix 
       - file-categories-apis
       - optimize_db_user_routes
+      - init-api
 
       
 
