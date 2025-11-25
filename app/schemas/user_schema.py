@@ -102,8 +102,24 @@ class UserQuerySchema(BaseModel):
     search: Optional[str] = None
     role: Optional[Literal['user', 'admin', 'superadmin', 'manager', 'clark']] = None
     status: Optional[Literal['active', 'inactive']] = None
+    category: Optional[List[str]] = None
     sort: str = 'created_date'
     order: Literal['asc', 'desc'] = 'desc'
+    
+    @field_validator('category', mode='before')
+    @classmethod
+    def validate_category(cls, v):
+        """Ensure category IDs are strings, not integers"""
+        if v is None:
+            return None
+        if isinstance(v, list):
+            # Filter out empty strings and convert all items to strings
+            return [str(item) for item in v if item and str(item).strip()]
+        # Handle single value case (convert to list)
+        if isinstance(v, str) and v.strip():
+            return [str(v)]
+        return None
+    
     model_config = {
         'extra': 'forbid'  # Forbid extra fields
     }

@@ -19,7 +19,15 @@ def validate_request(schema: Type[BaseModel], source: str = 'json'):
                 if source == 'json':
                     data = request.get_json() or {}
                 elif source == 'args':
-                    data = request.args.to_dict()
+                    # Convert MultiDict to dict, preserving lists for fields that might be lists
+                    data = {}
+                    for key in request.args:
+                        # Check if key appears multiple times (list parameter)
+                        values = request.args.getlist(key)
+                        if len(values) > 1:
+                            data[key] = values
+                        else:
+                            data[key] = values[0] if values else None
                 elif source == 'form':
                     data = request.form.to_dict()
                 else:

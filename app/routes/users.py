@@ -129,6 +129,16 @@ def get_users(validated_data: UserQuerySchema):
     if validated_data.status:
         filtered_users = [u for u in filtered_users if hasattr(u, 'status') and u.status == validated_data.status]
     
+    # File category filter
+    if validated_data.category:
+        category_ids_set = set(validated_data.category)
+        filtered_users = [
+            u for u in filtered_users
+            if hasattr(u, 'assigned_file_category_ids') and 
+               u.assigned_file_category_ids and
+               any(cat_id in category_ids_set for cat_id in u.assigned_file_category_ids)
+        ]
+    
     # Sorting
     sort_field = validated_data.sort
     reverse = validated_data.order == 'desc'
