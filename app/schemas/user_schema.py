@@ -9,6 +9,22 @@ class LoginSchema(BaseModel):
     password: str = Field(..., min_length=6)
 
 
+class InitSuperuserSchema(BaseModel):
+    """Superuser initialization schema (same as UserCreateSchema but without application_ids and file_category_ids)"""
+    email: EmailStr
+    password: str = Field(..., min_length=6)
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    
+    @field_validator('password')
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Validate password strength"""
+        if len(v) < 6:
+            raise ValueError('Password must be at least 6 characters')
+        return v
+
+
 class UserCreateSchema(BaseModel):
     """User creation schema"""
     email: EmailStr

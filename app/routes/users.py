@@ -5,7 +5,8 @@ from app.models import User, ActivityLog
 from app.schemas.user_schema import (
     UserCreateSchema,
     UserUpdateSchema,
-    UserQuerySchema
+    UserQuerySchema,
+    InitSuperuserSchema
 )
 from app.models import FileCategory
 from app.utils.validation import validate_json_body, validate_query_params
@@ -504,3 +505,43 @@ def get_file_categories():
             for cat in active_categories
         ]
     }), 200
+
+
+@users_bp.route('/init', methods=['POST'])
+@validate_json_body(InitSuperuserSchema)
+def init_superuser(validated_data: InitSuperuserSchema):
+    """Initialize superuser - only works if no users exist in the database"""
+    # Check if any users exist
+    existing_users = User.get_all()
+    if len(existing_users) > 0:
+        return jsonify({
+            'error': {
+                'code': 'INITIALIZATION_FAILED',
+                'message': 'Initialization can only be performed when no users exist in the database'
+            }
+        }), 403
+    
+    # Check if email already exists (shouldn't happen, but just in case)
+    if User.email_exists(validated_data.email):
+        return jsonify({
+            'error': {
+                'code': 'EMAIL_EXISTS',
+                'message': 'A user with this email already exists'
+            }
+        }), 409
+    
+    # Create superuser
+    user = User(
+        email=validated_data.email,
+        role='superadmin',
+        status='active',
+        first_name=validated_data.first_name,
+        last_name=validated_data.last_name
+    )
+    user.set_password(validated_data.password)
+    user.save()
+    
+    return jsonify({
+        'message': 'Superuser created successfully',
+        'user': user.to_dict()
+    }), 201
