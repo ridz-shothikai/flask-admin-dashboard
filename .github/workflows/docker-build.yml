@@ -10,6 +10,7 @@ on:
       - file-categories-apis
       - optimize_db_user_routes
       - init-api
+      - firestore-indexes
 
       
 
