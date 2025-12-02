@@ -15,6 +15,20 @@ from app.utils.validation import validate_json_body, validate_query_params
 
 file_categories_bp = Blueprint('file_categories', __name__, url_prefix='/api/file-categories')
 
+# Valid categories list (fallback when no categories are fetched)
+VALID_CATEGORIES = [
+    "1099",
+    "CHECKS",
+    "CHILD_WELFARE_REPORTS",
+    "LEAVE_DOCUMENTS",
+    "MONTH_END_REPORTS",
+    "PAYROLL_REPORTS_N_DOCUMENTS",
+    "PENDING_FILES",
+    "PERSONNEL_FILES",
+    "TRAVEL_REPORTS",
+    "OTHER"
+]
+
 
 def require_admin():
     """Decorator to require admin or superadmin role"""
@@ -399,6 +413,10 @@ def fetch_categories_from_applications(validated_data: FetchCategoriesFromApplic
     
     # Convert to sorted list
     unique_categories_list = sorted(unique_categories)
+    
+    # If no categories were fetched, return VALID_CATEGORIES as fallback
+    if not unique_categories_list:
+        unique_categories_list = sorted([cat.upper() for cat in VALID_CATEGORIES])
     
     response_data = {
         'categories': unique_categories_list,
