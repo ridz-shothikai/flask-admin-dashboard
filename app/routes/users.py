@@ -28,6 +28,20 @@ def require_admin():
     return None
 
 
+def require_superadmin():
+    """Decorator to require superadmin role only"""
+    claims = get_jwt()
+    role = claims.get('role', 'user')
+    if role != 'superadmin':
+        return jsonify({
+            'error': {
+                'code': 'FORBIDDEN',
+                'message': 'Superadmin access required'
+            }
+        }), 403
+    return None
+
+
 def _paginate_firestore(query_results, page, per_page):
     """Helper function to paginate Firestore results"""
     total = len(query_results)
@@ -50,7 +64,7 @@ def _paginate_firestore(query_results, page, per_page):
 @validate_query_params(UserQuerySchema)
 def get_users(validated_data: UserQuerySchema):
     """Get all users with pagination and filtering"""
-    error = require_admin()
+    error = require_superadmin()
     if error:
         return error
 
@@ -182,7 +196,7 @@ def get_users(validated_data: UserQuerySchema):
 @validate_json_body(UserCreateSchema)
 def create_user(validated_data: UserCreateSchema):
     """Create a new user"""
-    error = require_admin()
+    error = require_superadmin()
     if error:
         return error
 
@@ -319,7 +333,7 @@ def create_user(validated_data: UserCreateSchema):
 @jwt_required()
 def get_user(user_id):
     """Get a specific user by ID"""
-    error = require_admin()
+    error = require_superadmin()
     if error:
         return error
 
@@ -340,7 +354,7 @@ def get_user(user_id):
 @validate_json_body(UserUpdateSchema)
 def update_user(user_id, validated_data: UserUpdateSchema):
     """Update a user"""
-    error = require_admin()
+    error = require_superadmin()
     if error:
         return error
 
@@ -425,7 +439,7 @@ def update_user(user_id, validated_data: UserUpdateSchema):
 @jwt_required()
 def delete_user(user_id):
     """Delete a user"""
-    error = require_admin()
+    error = require_superadmin()
     if error:
         return error
 
@@ -476,7 +490,7 @@ def delete_user(user_id):
 @jwt_required()
 def get_roles():
     """Get all available user roles"""
-    error = require_admin()
+    error = require_superadmin()
     if error:
         return error
     
@@ -495,7 +509,7 @@ def get_roles():
 @jwt_required()
 def get_file_categories():
     """Get all available file categories"""
-    error = require_admin()
+    error = require_superadmin()
     if error:
         return error
     

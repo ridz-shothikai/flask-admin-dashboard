@@ -4,6 +4,7 @@ from datetime import datetime
 from urllib.parse import urlparse, urlunparse
 import requests
 from typing import List, Set
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from app.models import FileCategory, ActivityLog
 from app.schemas.file_category_schema import (
     FileCategoryCreateSchema,
@@ -39,6 +40,20 @@ def require_admin():
             'error': {
                 'code': 'FORBIDDEN',
                 'message': 'Admin access required'
+            }
+        }), 403
+    return None
+
+
+def require_superadmin():
+    """Decorator to require superadmin role only"""
+    claims = get_jwt()
+    role = claims.get('role', 'user')
+    if role != 'superadmin':
+        return jsonify({
+            'error': {
+                'code': 'FORBIDDEN',
+                'message': 'Superadmin access required'
             }
         }), 403
     return None
@@ -121,7 +136,7 @@ def get_file_categories(validated_data: FileCategoryQuerySchema):
 @validate_json_body(FileCategoryCreateSchema)
 def create_file_category(validated_data: FileCategoryCreateSchema):
     """Create a new file category"""
-    error = require_admin()
+    error = require_superadmin()
     if error:
         return error
 
@@ -183,7 +198,7 @@ def get_file_category(category_id):
 @validate_json_body(FileCategoryUpdateSchema)
 def update_file_category(category_id, validated_data: FileCategoryUpdateSchema):
     """Update a file category"""
-    error = require_admin()
+    error = require_superadmin()
     if error:
         return error
 
@@ -241,7 +256,7 @@ def update_file_category(category_id, validated_data: FileCategoryUpdateSchema):
 @jwt_required()
 def delete_file_category(category_id):
     """Delete a file category"""
-    error = require_admin()
+    error = require_superadmin()
     if error:
         return error
 
@@ -385,31 +400,34 @@ def fetch_categories_from_applications(validated_data: FetchCategoriesFromApplic
     # Track unique categories using a set (case-insensitive)
     unique_categories: Set[str] = set()
     
-    for app_url in application_urls:
+    # Parallelize backend requests for faster response
+    def fetch_from_url(app_url: str):
+        """Helper function to fetch categories from a single URL"""
         try:
-            # Convert application URL to backend URL
             backend_url = _convert_to_backend_url(app_url)
-            
-            print(f"DEBUG [file_categories.py]: backend_url = {backend_url}")
-            # Fetch categories from backend (returns list of strings)
             categories = _fetch_categories_from_backend(backend_url, auth_token=auth_token)
-            
-            # Add to unique categories set (case-insensitive deduplication)
-            for category_code in categories:
-                if category_code:
-                    # Normalize to uppercase for case-insensitive uniqueness check
-                    unique_categories.add(category_code.upper())
-            
-        except ValueError as e:
-            errors.append({
-                'url': app_url,
-                'error': str(e)
-            })
+            return app_url, categories, None
         except Exception as e:
-            errors.append({
-                'url': app_url,
-                'error': f'Failed to fetch categories: {str(e)}'
-            })
+            return app_url, [], str(e)
+    
+    # Use ThreadPoolExecutor to fetch from all URLs in parallel
+    with ThreadPoolExecutor(max_workers=min(len(application_urls), 10)) as executor:
+        future_to_url = {executor.submit(fetch_from_url, app_url): app_url for app_url in application_urls}
+        
+        for future in as_completed(future_to_url):
+            app_url, categories, error = future.result()
+            
+            if error:
+                errors.append({
+                    'url': app_url,
+                    'error': error
+                })
+            else:
+                # Add to unique categories set (case-insensitive deduplication)
+                for category_code in categories:
+                    if category_code:
+                        # Normalize to uppercase for case-insensitive uniqueness check
+                        unique_categories.add(category_code.upper())
     
     # Convert to sorted list of category codes
     unique_categories_list = sorted(unique_categories)
@@ -418,17 +436,34 @@ def fetch_categories_from_applications(validated_data: FetchCategoriesFromApplic
     if not unique_categories_list:
         unique_categories_list = sorted([cat.upper() for cat in VALID_CATEGORIES])
     
-    # Fetch full category objects from database by code
+    # Batch load all categories from database for better performance
+    all_categories = FileCategory.get_all()
+    
+    # Create a lookup map by code (uppercase for case-insensitive matching)
+    categories_by_code = {}
+    for cat in all_categories:
+        if hasattr(cat, 'code') and cat.code:
+            categories_by_code[cat.code.upper()] = cat
+    
+    # Pre-calculate user counts in a single pass for all categories
+    from app.models.user import User
+    all_users = User.get_all()
+    category_user_counts = {}
+    for user in all_users:
+        if hasattr(user, 'assigned_file_category_ids') and user.assigned_file_category_ids:
+            for cat_id in user.assigned_file_category_ids:
+                category_user_counts[cat_id] = category_user_counts.get(cat_id, 0) + 1
+    
+    # Build response list with pre-calculated user counts
     file_categories_list = []
     for category_code in unique_categories_list:
-        # Try to find category in database by code
-        category = FileCategory.get_by_code(category_code)
+        category = categories_by_code.get(category_code)
         if category:
-            # Use to_dict() for proper FileCategory objects
-            file_categories_list.append(category.to_dict())
+            # Use pre-calculated user_count for better performance
+            user_count = category_user_counts.get(category.id, 0)
+            file_categories_list.append(category.to_dict(user_count=user_count))
         else:
             # If category doesn't exist in DB, create a minimal representation
-            # This handles cases where backend returns codes not yet in our DB
             file_categories_list.append({
                 'id': None,
                 'code': category_code,

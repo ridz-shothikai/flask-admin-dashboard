@@ -26,6 +26,20 @@ def require_admin():
     return None
 
 
+def require_superadmin():
+    """Decorator to require superadmin role only"""
+    claims = get_jwt()
+    role = claims.get('role', 'user')
+    if role != 'superadmin':
+        return jsonify({
+            'error': {
+                'code': 'FORBIDDEN',
+                'message': 'Superadmin access required'
+            }
+        }), 403
+    return None
+
+
 def _paginate_firestore(query_results, page, per_page):
     """Helper function to paginate Firestore results"""
     total = len(query_results)
@@ -101,7 +115,7 @@ def get_applications(validated_data: ApplicationQuerySchema):
 @validate_json_body(ApplicationCreateSchema)
 def create_application(validated_data: ApplicationCreateSchema):
     """Create a new application"""
-    error = require_admin()
+    error = require_superadmin()
     if error:
         return error
 
@@ -160,7 +174,7 @@ def get_application(app_id):
 @validate_json_body(ApplicationUpdateSchema)
 def update_application(app_id, validated_data: ApplicationUpdateSchema):
     """Update an application"""
-    error = require_admin()
+    error = require_superadmin()
     if error:
         return error
 
@@ -216,7 +230,7 @@ def update_application(app_id, validated_data: ApplicationUpdateSchema):
 @jwt_required()
 def delete_application(app_id):
     """Delete an application"""
-    error = require_admin()
+    error = require_superadmin()
     if error:
         return error
 
