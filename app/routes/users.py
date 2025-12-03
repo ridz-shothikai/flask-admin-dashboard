@@ -496,10 +496,10 @@ def get_roles():
     
     return jsonify({
         'roles': [
-            {'value': 'user', 'label': 'User'},
-            {'value': 'admin', 'label': 'Admin'},
             {'value': 'superadmin', 'label': 'Super Admin'},
+            {'value': 'admin', 'label': 'Admin'},
             {'value': 'manager', 'label': 'Manager'},
+            {'value': 'user', 'label': 'User'},
             {'value': 'clark', 'label': 'Clark'}
         ]
     }), 200
