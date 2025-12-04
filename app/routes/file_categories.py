@@ -462,18 +462,7 @@ def fetch_categories_from_applications(validated_data: FetchCategoriesFromApplic
             # Use pre-calculated user_count for better performance
             user_count = category_user_counts.get(category.id, 0)
             file_categories_list.append(category.to_dict(user_count=user_count))
-        else:
-            # If category doesn't exist in DB, create a minimal representation
-            file_categories_list.append({
-                'id': None,
-                'code': category_code,
-                'name': category_code.replace('_', ' ').title(),
-                'description': None,
-                'status': 'active',
-                'created_date': None,
-                'last_updated': None,
-                'user_count': 0
-            })
+        # Remove the else block - simply skip categories not in DB
     
     # Sort by code for consistent output
     file_categories_list.sort(key=lambda x: x.get('code', '').upper())
