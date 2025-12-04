@@ -11,6 +11,7 @@ on:
       - optimize_db_user_routes
       - init-api
       - firestore-indexes
+      - fix-categories
 
       
 
