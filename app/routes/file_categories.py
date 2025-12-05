@@ -176,7 +176,6 @@ def create_file_category(validated_data: FileCategoryCreateSchema):
         'file_category': file_category.to_dict()
     }), 201
 
-
 @file_categories_bp.route('/<category_id>', methods=['GET'])
 @jwt_required()
 def get_file_category(category_id):
@@ -294,6 +293,31 @@ def delete_file_category(category_id):
 
     return jsonify({
         'message': 'File category deleted successfully'
+    }), 200
+
+
+@file_categories_bp.route('/all', methods=['DELETE'])
+@jwt_required()
+def delete_all_file_categories():
+    """Delete all file categories (Superadmin only)"""
+    error = require_superadmin()
+    if error:
+        return error
+
+    total_deleted = FileCategory.delete_all()
+
+    # Log activity
+    current_user_id = get_jwt_identity()
+    activity = ActivityLog(
+        event_type='file_categories_deleted_all',
+        user_id=current_user_id,
+        description=f'Deleted all file categories ({total_deleted})',
+        ip_address=request.remote_addr
+    )
+    activity.save()
+
+    return jsonify({
+        'message': f'Successfully deleted {total_deleted} file categories'
     }), 200
 
 

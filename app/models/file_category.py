@@ -67,3 +67,10 @@ class FileCategory(BaseModel):
     def __repr__(self):
         return f'<FileCategory {self.code if hasattr(self, "code") else "Unknown"}>'
 
+    @classmethod
+    def delete_all(cls) -> int:
+        """Delete ALL file categories (dangerous)"""
+        docs = cls.get_all()
+        for doc in docs:
+            doc.delete()
+        return len(docs)
