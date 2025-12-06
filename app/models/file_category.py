@@ -16,6 +16,8 @@ class FileCategory(BaseModel):
             self._data['created_date'] = datetime.utcnow()
         if 'last_updated' not in self._data:
             self._data['last_updated'] = datetime.utcnow()
+        if 'short_code' not in self._data:
+            self._data['short_code'] = []
     
     def to_dict(self, user_count=None):
         """Convert to dictionary with optional pre-calculated user_count for performance"""
@@ -29,6 +31,7 @@ class FileCategory(BaseModel):
             'name': self.name if hasattr(self, 'name') else self.code,
             'description': self.description if hasattr(self, 'description') else None,
             'status': self.status,
+            'short_code': self.short_code if hasattr(self, 'short_code') and self.short_code else [],
             'created_date': self.created_date.isoformat() if hasattr(self, 'created_date') and self.created_date else None,
             'last_updated': self.last_updated.isoformat() if hasattr(self, 'last_updated') and self.last_updated else None,
             'user_count': user_count

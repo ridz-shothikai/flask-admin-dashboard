@@ -8,15 +8,18 @@ All endpoints are prefixed with `/api/file-categories`
 
 ## Authentication
 
-All endpoints require JWT authentication. Include the JWT token in the `Authorization` header:
+Most endpoints require JWT authentication. Include the JWT token in the `Authorization` header:
 
 ```
 Authorization: Bearer <your_jwt_token>
 ```
 
+**Exception:** The `GET /api/file-categories/all` endpoint uses API key authentication instead of JWT. See the endpoint documentation for details.
+
 ## Authorization
 
 - **GET** endpoints: Require authentication (any authenticated user)
+  - Exception: `GET /api/file-categories/all` uses API key authentication (no JWT required)
 - **POST, PUT, DELETE** endpoints: Require admin or superadmin role
 
 ---
@@ -61,6 +64,7 @@ GET /api/file-categories?page=1&per_page=20&status=active&sort=code&order=asc
       "name": "1099",
       "description": "File category for 1099",
       "status": "active",
+      "short_code": ["99", "109"],
       "created_date": "2024-01-15T10:30:00",
       "last_updated": "2024-01-15T10:30:00",
       "user_count": 5
@@ -71,6 +75,7 @@ GET /api/file-categories?page=1&per_page=20&status=active&sort=code&order=asc
       "name": "Checks",
       "description": "File category for Checks",
       "status": "active",
+      "short_code": ["CHK", "CK"],
       "created_date": "2024-01-15T10:31:00",
       "last_updated": "2024-01-15T10:31:00",
       "user_count": 3
@@ -125,6 +130,7 @@ GET /api/file-categories/abc123
   "name": "1099",
   "description": "File category for 1099",
   "status": "active",
+  "short_code": ["99", "109"],
   "created_date": "2024-01-15T10:30:00",
   "last_updated": "2024-01-15T10:30:00",
   "user_count": 5
@@ -165,6 +171,7 @@ Create a new file category.
 | `name` | string | No | Display name for the category (max 100 characters). If not provided, defaults to the code. |
 | `description` | string | No | Description of the category |
 | `status` | string | No | Status: `active` or `inactive` (default: `active`) |
+| `short_code` | array of strings | No | List of short codes for the category (default: empty array `[]`) |
 
 **Example Request:**
 
@@ -173,7 +180,8 @@ Create a new file category.
   "code": "NEW_CATEGORY",
   "name": "New Category",
   "description": "Description for the new category",
-  "status": "active"
+  "status": "active",
+  "short_code": ["NC", "NEW"]
 }
 ```
 
@@ -188,6 +196,7 @@ Create a new file category.
     "name": "New Category",
     "description": "Description for the new category",
     "status": "active",
+    "short_code": ["NC", "NEW"],
     "created_date": "2024-01-15T11:00:00",
     "last_updated": "2024-01-15T11:00:00",
     "user_count": 0
@@ -264,6 +273,7 @@ Update an existing file category. All fields are optional, but at least one fiel
 | `name` | string | No | Display name for the category (max 100 characters) |
 | `description` | string | No | Description of the category |
 | `status` | string | No | Status: `active` or `inactive` |
+| `short_code` | array of strings | No | List of short codes for the category |
 
 **Note:** At least one field must be provided in the request body.
 
@@ -273,7 +283,8 @@ Update an existing file category. All fields are optional, but at least one fiel
 {
   "name": "Updated Category Name",
   "description": "Updated description",
-  "status": "inactive"
+  "status": "inactive",
+  "short_code": ["UPD", "UPDATED"]
 }
 ```
 
@@ -288,6 +299,7 @@ Update an existing file category. All fields are optional, but at least one fiel
     "name": "Updated Category Name",
     "description": "Updated description",
     "status": "inactive",
+    "short_code": ["UPD", "UPDATED"],
     "created_date": "2024-01-15T10:30:00",
     "last_updated": "2024-01-15T12:00:00",
     "user_count": 5
@@ -382,6 +394,91 @@ DELETE /api/file-categories/abc123
 
 ---
 
+### 6. Get All Categories (API Key)
+
+Get all file categories using API key authentication. Returns a simplified response with only `name`, `code`, and `short_code` fields.
+
+**Endpoint:** `GET /api/file-categories/all`
+
+**Authentication:** Required (API Key)
+
+**Authorization:** API key must match `JWT_SECRET_KEY` from environment configuration
+
+**Headers:**
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `X-API-Key` | string | Yes* | API key (alternative to Authorization header) |
+| `Authorization` | string | Yes* | Bearer token format: `Bearer <api-key>` (alternative to X-API-Key header) |
+
+*Either `X-API-Key` or `Authorization` header must be provided.
+
+**Example Request:**
+
+```bash
+GET /api/file-categories/all
+X-API-Key: <your-jwt-secret-key>
+```
+
+Or using Authorization header:
+
+```bash
+GET /api/file-categories/all
+Authorization: Bearer <your-jwt-secret-key>
+```
+
+**Example Response (200 OK):**
+
+```json
+{
+  "categories": [
+    {
+      "name": "1099",
+      "code": "1099",
+      "short_code": ["99", "109"]
+    },
+    {
+      "name": "Checks",
+      "code": "CHECKS",
+      "short_code": ["CHK", "CK"]
+    },
+    {
+      "name": "Travel Reports",
+      "code": "TRAVEL_REPORTS",
+      "short_code": []
+    }
+  ]
+}
+```
+
+**Error Responses:**
+
+- `401 Unauthorized`: API key is missing
+
+```json
+{
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "API key is required. Provide it in X-API-Key header or Authorization header."
+  }
+}
+```
+
+- `401 Unauthorized`: Invalid API key
+
+```json
+{
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Invalid API key"
+  }
+}
+```
+
+**Note:** This endpoint uses API key authentication instead of JWT tokens. The API key must match the `JWT_SECRET_KEY` value from your environment configuration (`.env` file).
+
+---
+
 ## Data Models
 
 ### File Category Object
@@ -393,9 +490,22 @@ DELETE /api/file-categories/abc123
   "name": "string",                  // Display name (optional)
   "description": "string",           // Description (optional)
   "status": "active" | "inactive",  // Status
+  "short_code": ["string"],          // List of short codes for the category
   "created_date": "ISO8601",         // Creation timestamp
   "last_updated": "ISO8601",         // Last update timestamp
   "user_count": 0                    // Number of users assigned to this category
+}
+```
+
+### Simplified File Category Object (API Key Endpoint)
+
+Used in the `GET /api/file-categories/all` endpoint response:
+
+```json
+{
+  "name": "string",        // Display name
+  "code": "string",        // Unique category code (uppercase)
+  "short_code": ["string"] // List of short codes for the category
 }
 ```
 
@@ -450,7 +560,8 @@ curl -X POST https://api.example.com/api/file-categories \
     "code": "TRAVEL_REPORTS",
     "name": "Travel Reports",
     "description": "Category for travel-related documents",
-    "status": "active"
+    "status": "active",
+    "short_code": ["TR", "TRAVEL"]
   }'
 ```
 
@@ -479,6 +590,20 @@ curl -X DELETE https://api.example.com/api/file-categories/abc123 \
   -H "Authorization: Bearer <your_jwt_token>"
 ```
 
+### Example 5: Get All Categories with API Key
+
+```bash
+curl -X GET https://api.example.com/api/file-categories/all \
+  -H "X-API-Key: <your-jwt-secret-key>"
+```
+
+Or using Authorization header:
+
+```bash
+curl -X GET https://api.example.com/api/file-categories/all \
+  -H "Authorization: Bearer <your-jwt-secret-key>"
+```
+
 ---
 
 ## Notes
@@ -496,6 +621,12 @@ curl -X DELETE https://api.example.com/api/file-categories/abc123 \
 6. **Search**: The search functionality searches across `code`, `name`, and `description` fields (case-insensitive).
 
 7. **Sorting**: You can sort by any field in the category object. Common sort fields include `code`, `name`, `created_date`, `last_updated`, and `user_count`.
+
+8. **Short Codes**: The `short_code` field allows multiple short codes to be associated with a single category. This is useful for alternative identifiers or abbreviations. If not provided during creation, it defaults to an empty array. You can update it by providing a new array of strings.
+
+9. **API Key Authentication**: The `GET /api/file-categories/all` endpoint uses API key authentication instead of JWT tokens. The API key must match the `JWT_SECRET_KEY` value from your environment configuration. This endpoint returns a simplified response with only `name`, `code`, and `short_code` fields, making it suitable for external integrations.
+
+10. **Code Generation**: If `code` is not provided when creating a category, it will be automatically generated from the `name` field by converting to uppercase and replacing spaces with underscores (e.g., "test cat" → "TEST_CAT").
 
 ---
 

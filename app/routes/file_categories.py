@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from datetime import datetime
 from urllib.parse import urlparse, urlunparse
@@ -140,9 +140,21 @@ def create_file_category(validated_data: FileCategoryCreateSchema):
     if error:
         return error
 
-    # Normalize code to uppercase
-    code = validated_data.code.upper()
-
+    # Determine code: use provided code or generate from name
+    if validated_data.code:
+        # Normalize provided code to uppercase
+        code = validated_data.code.upper()
+    else:
+        # Generate code from name: uppercase and replace spaces with underscores
+        if not validated_data.name:
+            return jsonify({
+                'error': {
+                    'code': 'VALIDATION_ERROR',
+                    'message': 'Either code or name must be provided'
+                }
+            }), 400
+        code = validated_data.name.upper().replace(' ', '_')
+    
     # Check if code already exists
     if FileCategory.code_exists(code):
         return jsonify({
@@ -157,7 +169,8 @@ def create_file_category(validated_data: FileCategoryCreateSchema):
         code=code,
         name=validated_data.name or code,
         description=validated_data.description,
-        status=validated_data.status
+        status=validated_data.status,
+        short_code=validated_data.short_code if validated_data.short_code is not None else []
     )
     file_category.save()
 
@@ -232,6 +245,9 @@ def update_file_category(category_id, validated_data: FileCategoryUpdateSchema):
 
     if validated_data.status:
         file_category.status = validated_data.status
+
+    if validated_data.short_code is not None:
+        file_category.short_code = validated_data.short_code
 
     file_category.save()
 
@@ -510,4 +526,45 @@ def fetch_categories_from_applications(validated_data: FetchCategoriesFromApplic
         response_data['errors'] = errors
     
     return jsonify(response_data), 200
+
+
+@file_categories_bp.route('/all', methods=['GET'])
+def get_all_categories_api_key():
+    """Get all file categories (API key authentication) - Returns only name, code, and short_code"""
+    # Get API key from headers
+    api_key = request.headers.get('X-API-Key') or request.headers.get('Authorization', '').replace('Bearer ', '')
+    
+    if not api_key:
+        return jsonify({
+            'error': {
+                'code': 'UNAUTHORIZED',
+                'message': 'API key is required. Provide it in X-API-Key header or Authorization header.'
+            }
+        }), 401
+    
+    # Validate API key against JWT_SECRET_KEY
+    jwt_secret = current_app.config.get('JWT_SECRET_KEY')
+    if api_key != jwt_secret:
+        return jsonify({
+            'error': {
+                'code': 'UNAUTHORIZED',
+                'message': 'Invalid API key'
+            }
+        }), 401
+    
+    # Get all file categories
+    all_categories = FileCategory.get_all()
+    
+    # Return simplified response with only name, code, and short_code
+    categories_list = []
+    for category in all_categories:
+        categories_list.append({
+            'name': category.name if hasattr(category, 'name') and category.name else category.code,
+            'code': category.code,
+            'short_code': category.short_code if hasattr(category, 'short_code') and category.short_code else []
+        })
+    
+    return jsonify({
+        'categories': categories_list
+    }), 200
 
