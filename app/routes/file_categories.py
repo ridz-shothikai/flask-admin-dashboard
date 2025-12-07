@@ -5,7 +5,7 @@ from urllib.parse import urlparse, urlunparse
 import requests
 from typing import List, Set
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from app.models import FileCategory, ActivityLog
+from app.models import FileCategory, ActivityLog, User
 from app.schemas.file_category_schema import (
     FileCategoryCreateSchema,
     FileCategoryUpdateSchema,
@@ -526,6 +526,50 @@ def fetch_categories_from_applications(validated_data: FetchCategoriesFromApplic
         response_data['errors'] = errors
     
     return jsonify(response_data), 200
+
+
+@file_categories_bp.route('/accessible', methods=['GET'])
+@jwt_required()
+def get_accessible_categories():
+    """Get file categories accessible to the authenticated user"""
+    # Get current user
+    user_id = get_jwt_identity()
+    user = User.get_by_id(user_id)
+    
+    if not user:
+        return jsonify({
+            'error': {
+                'code': 'USER_NOT_FOUND',
+                'message': 'User not found'
+            }
+        }), 404
+    
+    # Get user's assigned file category IDs
+    category_ids = getattr(user, 'assigned_file_category_ids', [])
+    
+    if not category_ids:
+        return jsonify({
+            'categories': []
+        }), 200
+    
+    # Fetch categories
+    accessible_categories = []
+    for category_id in category_ids:
+        category = FileCategory.get_by_id(category_id)
+        if category:
+            # Only return active categories
+            if hasattr(category, 'status') and category.status == 'active':
+                accessible_categories.append({
+                    'id': category.id,
+                    'code': category.code,
+                    'name': category.name if hasattr(category, 'name') and category.name else category.code,
+                    'description': category.description if hasattr(category, 'description') else None,
+                    'short_code': category.short_code if hasattr(category, 'short_code') and category.short_code else []
+                })
+    
+    return jsonify({
+        'categories': accessible_categories
+    }), 200
 
 
 @file_categories_bp.route('/all', methods=['GET'])
