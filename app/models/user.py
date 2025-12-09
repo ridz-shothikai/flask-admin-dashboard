@@ -99,6 +99,76 @@ class User(BaseModel):
         
         return result
     
+    def to_dict_simple(self):
+        """Convert to dictionary without user counts for assigned_applications and assigned_file_categories (optimized for login API)"""
+        result = {
+            'id': self.id,
+            'email': self.email,
+            'role': self.role,
+            'status': self.status,
+            'first_name': self.first_name if hasattr(self, 'first_name') else None,
+            'last_name': self.last_name if hasattr(self, 'last_name') else None,
+            'created_date': self.created_date.isoformat() if hasattr(self, 'created_date') and self.created_date else None,
+            'last_login': self.last_login.isoformat() if hasattr(self, 'last_login') and self.last_login else None,
+        }
+        
+        # Import once for both applications and file categories
+        from app.db import get_db
+        db = get_db()
+        
+        # Batch load assigned applications - convert directly to dict without creating objects
+        if hasattr(self, 'assigned_application_ids') and self.assigned_application_ids:
+            # Batch load all applications in a single Firestore request
+            app_refs = [db.collection('applications').document(app_id) for app_id in self.assigned_application_ids]
+            apps = []
+            if app_refs:
+                docs = db.get_all(app_refs)
+                for doc in docs:
+                    if doc.exists:
+                        data = doc.to_dict()
+                        # Convert directly to dict - skip Application object creation
+                        app_dict = {
+                            'id': doc.id,
+                            'name': data.get('name'),
+                            'description': data.get('description'),
+                            'url': data.get('url'),
+                            'status': data.get('status', 'active'),
+                            'created_date': data.get('created_date').isoformat() if data.get('created_date') else None,
+                            'last_updated': data.get('last_updated').isoformat() if data.get('last_updated') else None,
+                        }
+                        apps.append(app_dict)
+            result['assigned_applications'] = apps
+        else:
+            result['assigned_applications'] = []
+        
+        # Batch load assigned file categories - convert directly to dict without creating objects
+        if hasattr(self, 'assigned_file_category_ids') and self.assigned_file_category_ids:
+            # Batch load all file categories in a single Firestore request
+            category_refs = [db.collection('file_categories').document(cat_id) for cat_id in self.assigned_file_category_ids]
+            categories = []
+            if category_refs:
+                docs = db.get_all(category_refs)
+                for doc in docs:
+                    if doc.exists:
+                        data = doc.to_dict()
+                        # Convert directly to dict - skip FileCategory object creation
+                        category_dict = {
+                            'id': doc.id,
+                            'code': data.get('code'),
+                            'name': data.get('name') or data.get('code'),
+                            'description': data.get('description'),
+                            'status': data.get('status', 'active'),
+                            'short_code': data.get('short_code', []),
+                            'created_date': data.get('created_date').isoformat() if data.get('created_date') else None,
+                            'last_updated': data.get('last_updated').isoformat() if data.get('last_updated') else None,
+                        }
+                        categories.append(category_dict)
+            result['assigned_file_categories'] = categories
+        else:
+            result['assigned_file_categories'] = []
+        
+        return result
+    
     @classmethod
     def get_by_email(cls, email: str):
         """Get user by email"""

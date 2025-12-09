@@ -496,16 +496,19 @@ def login(validated_data: LoginSchema):
             }
         }), 403
 
-    # Update last login
-    user.last_login = datetime.utcnow()
-    user.save()
-
-    # Create tokens (identity must be string)
+    # Create tokens first
     access_token = create_access_token(
         identity=str(user.id),
         additional_claims={'role': user.role}
     )
     refresh_token = create_refresh_token(identity=str(user.id))
+
+    # Get user data BEFORE save operations (this loads apps/categories)
+    user_data = user.to_dict_simple()
+
+    # Update last login and log activity (these can happen after we have the response data)
+    user.last_login = datetime.utcnow()
+    user.save()
 
     # Log activity
     activity = ActivityLog(
@@ -521,7 +524,7 @@ def login(validated_data: LoginSchema):
         'message': 'Login successful',
         'access_token': access_token,
         'refresh_token': refresh_token,
-        'user': user.to_dict()
+        'user': user_data
     }), 200
 
 
