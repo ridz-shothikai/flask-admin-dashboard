@@ -738,7 +738,7 @@ def verify_token():
                     'expires_at': expires_at,
                     'issued_at': datetime.fromtimestamp(iat).isoformat() if iat else None
                 },
-                'user': user.to_dict()
+                'user': user.to_dict_simple()
             }), 200
         else:
             return jsonify({
