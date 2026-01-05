@@ -59,6 +59,7 @@ def create_app(config_object=None):
     from app.routes.dashboard import dashboard_bp
     from app.routes.file_categories import file_categories_bp
     from app.routes.firestore_indexes import firestore_indexes_bp
+    from app.routes.redis_cache import redis_cache_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(users_bp)
@@ -66,6 +67,7 @@ def create_app(config_object=None):
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(file_categories_bp)
     app.register_blueprint(firestore_indexes_bp)
+    app.register_blueprint(redis_cache_bp)
 
     # Start background metrics collector (optional)
     # from app.utils.background_tasks import MetricsCollector

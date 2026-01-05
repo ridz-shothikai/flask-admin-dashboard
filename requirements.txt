@@ -41,3 +41,6 @@ python3-saml==1.16.0
 
 # HTTP Requests
 requests==2.31.0
+
+# Redis Cache
+redis==5.0.1

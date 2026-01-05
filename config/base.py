@@ -26,6 +26,12 @@ class Config:
     ITEMS_PER_PAGE = 20
     # Frontend URL for SSO redirects
     FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+    
+    # Redis Configuration (for cache management)
+    REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
+    REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+    REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', None)
+    REDIS_DB = int(os.environ.get('REDIS_DB', 0))
 
 class DevelopmentConfig(Config):
 
