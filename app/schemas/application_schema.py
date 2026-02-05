@@ -41,6 +41,7 @@ class ApplicationResponseSchema(BaseModel):
     status: str
     created_date: Optional[datetime]
     last_updated: Optional[datetime]
+    user_count: int
     model_config = {
         'from_attributes': True
     }

@@ -17,8 +17,12 @@ class Application(BaseModel):
         if 'last_updated' not in self._data:
             self._data['last_updated'] = datetime.utcnow()
     
-    def to_dict(self):
-        """Convert to dictionary"""
+    def to_dict(self, user_count=None):
+        """Convert to dictionary with optional pre-calculated user_count for performance"""
+        # Use provided user_count or calculate it if not provided (for backward compatibility)
+        if user_count is None:
+            user_count = self.get_user_count()
+        
         return {
             'id': self.id,
             'name': self.name,
@@ -26,7 +30,8 @@ class Application(BaseModel):
             'url': self.url if hasattr(self, 'url') else None,
             'status': self.status,
             'created_date': self.created_date.isoformat() if hasattr(self, 'created_date') and self.created_date else None,
-            'last_updated': self.last_updated.isoformat() if hasattr(self, 'last_updated') and self.last_updated else None
+            'last_updated': self.last_updated.isoformat() if hasattr(self, 'last_updated') and self.last_updated else None,
+            'user_count': user_count
         }
     
     @classmethod
