@@ -431,7 +431,7 @@ def sso_acs():
             
             access_token = create_access_token(
                 identity=str(user.get('id')),
-                additional_claims={"role": user_role, "name": email_name}
+                additional_claims={"role": user_role, "name": email_name, "email": email}
             )
             logger.info("RESULT: JWT token created successfully")
             logger.info(f"Token length: {len(access_token)} characters")
@@ -499,7 +499,7 @@ def login(validated_data: LoginSchema):
     # Create tokens first
     access_token = create_access_token(
         identity=str(user.id),
-        additional_claims={'role': user.role}
+        additional_claims={'role': user.role, 'email': user.email}
     )
     refresh_token = create_refresh_token(identity=str(user.id))
 
@@ -538,7 +538,7 @@ def refresh():
     if user:
         access_token = create_access_token(
             identity=str(user.id),
-            additional_claims={'role': user.role}
+            additional_claims={'role': user.role, 'email': user.email}
         )
     else:
         access_token = create_access_token(identity=identity)
@@ -723,7 +723,7 @@ def verify_token():
             # Create new access and refresh tokens
             access_token = create_access_token(
                 identity=str(user.id),
-                additional_claims={'role': user.role}
+                additional_claims={'role': user.role, 'email': user.email}
             )
             refresh_token = create_refresh_token(identity=str(user.id))
             
