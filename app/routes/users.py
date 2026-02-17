@@ -1,4 +1,5 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
+import os
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from datetime import datetime
 from app.models import User, ActivityLog
@@ -261,6 +262,10 @@ def create_user(validated_data: UserCreateSchema):
     if validated_data.file_category_ids:
         user.assigned_file_category_ids = validated_data.file_category_ids
 
+    # Assign file management permissions
+    if validated_data.file_management_permissions:
+        user.file_management_permissions = validated_data.file_management_permissions.model_dump()
+
     user.save()
 
     # Log activity
@@ -417,6 +422,10 @@ def update_user(user_id, validated_data: UserUpdateSchema):
             }), 400
         user.assigned_file_category_ids = validated_data.file_category_ids
 
+    # Update file management permissions
+    if validated_data.file_management_permissions is not None:
+        user.file_management_permissions = validated_data.file_management_permissions.model_dump()
+
     user.save()
 
     # Log activity
@@ -569,3 +578,85 @@ def init_superuser(validated_data: InitSuperuserSchema):
         'message': 'Superuser created successfully',
         'user': user.to_dict()
     }), 201
+
+
+@users_bp.route('/by-email/<path:email>/permissions', methods=['GET'])
+def get_user_permissions_by_email(email):
+    """Get user permissions by email (API key authentication for microservices)"""
+    # Get API key from headers
+    api_key = request.headers.get('X-API-Key') or request.headers.get('Authorization', '').replace('Bearer ', '')
+    
+    if not api_key:
+        return jsonify({
+            'error': {
+                'code': 'UNAUTHORIZED',
+                'message': 'API key is required'
+            }
+        }), 401
+    
+    # Validate API key against JWT_SECRET_KEY
+    jwt_secret = current_app.config.get('JWT_SECRET_KEY') or os.environ.get('JWT_SECRET_KEY')
+    if api_key != jwt_secret:
+        return jsonify({
+            'error': {
+                'code': 'UNAUTHORIZED',
+                'message': 'Invalid API key'
+            }
+        }), 401
+        
+    user = User.get_by_email(email)
+    if not user:
+         return jsonify({
+            'error': {
+                'code': 'USER_NOT_FOUND',
+                'message': f'User with email {email} not found'
+            }
+        }), 404
+    
+    user_data = user.to_dict()
+    # Add 'permissions' key for compatibility with V2 backend
+    if 'file_management_permissions' in user_data:
+        user_data['permissions'] = user_data['file_management_permissions']
+        
+    return jsonify(user_data), 200
+
+
+@users_bp.route('/<user_id>/permissions', methods=['GET'])
+def get_user_permissions_by_id(user_id):
+    """Get user permissions by User ID (API key authentication for microservices)"""
+    # Get API key from headers
+    api_key = request.headers.get('X-API-Key') or request.headers.get('Authorization', '').replace('Bearer ', '')
+    
+    if not api_key:
+        return jsonify({
+            'error': {
+                'code': 'UNAUTHORIZED',
+                'message': 'API key is required'
+            }
+        }), 401
+    
+    # Validate API key against JWT_SECRET_KEY
+    jwt_secret = current_app.config.get('JWT_SECRET_KEY') or os.environ.get('JWT_SECRET_KEY')
+    if api_key != jwt_secret:
+        return jsonify({
+            'error': {
+                'code': 'UNAUTHORIZED',
+                'message': 'Invalid API key'
+            }
+        }), 401
+        
+    user = User.get_by_id(user_id)
+    if not user:
+         return jsonify({
+            'error': {
+                'code': 'USER_NOT_FOUND',
+                'message': f'User with id {user_id} not found'
+            }
+        }), 404
+    
+    user_data = user.to_dict()
+    # Add 'permissions' key for compatibility with V2 backend
+    if 'file_management_permissions' in user_data:
+        user_data['permissions'] = user_data['file_management_permissions']
+        
+    return jsonify(user_data), 200

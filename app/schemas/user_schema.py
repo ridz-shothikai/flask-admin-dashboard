@@ -39,6 +39,21 @@ class InitSuperuserSchema(BaseModel):
         return v
 
 
+
+class FileManagementPermissionsSchema(BaseModel):
+    """File management permissions schema"""
+    can_rename_source: bool = False
+    can_delete_source: bool = False
+    can_upload: bool = False
+    can_create_root_folder_source: bool = False
+    can_create_folder_source: bool = False
+    can_delete_destination: bool = False
+    can_create_root_folder_destination: bool = False
+    can_create_folder_destination: bool = False
+    can_transfer: bool = True
+    can_view_all_transfer_history: bool = False
+
+
 class UserCreateSchema(BaseModel):
     """User creation schema"""
     email: EmailStr
@@ -49,6 +64,7 @@ class UserCreateSchema(BaseModel):
     last_name: Optional[str] = None
     application_ids: List[str] = Field(default_factory=list, description="List of application IDs (strings)")
     file_category_ids: List[str] = Field(default_factory=list, description="List of file category IDs (strings)")
+    file_management_permissions: Optional[FileManagementPermissionsSchema] = None
     
     @field_validator('application_ids', mode='before')
     @classmethod
@@ -91,6 +107,7 @@ class UserUpdateSchema(BaseModel):
     last_name: Optional[str] = None
     application_ids: Optional[List[str]] = None
     file_category_ids: Optional[List[str]] = None
+    file_management_permissions: Optional[FileManagementPermissionsSchema] = None
     
     @field_validator('application_ids', mode='before')
     @classmethod
@@ -119,7 +136,8 @@ class UserUpdateSchema(BaseModel):
         """Ensure at least one field is provided"""
         if not any([
             self.email, self.password, self.role, self.status,
-            self.first_name, self.last_name, self.application_ids, self.file_category_ids
+            self.first_name, self.last_name, self.application_ids, 
+            self.file_category_ids, self.file_management_permissions
         ]):
             raise ValueError('At least one field must be provided for update')
         return self
@@ -167,6 +185,7 @@ class UserResponseSchema(BaseModel):
     last_login: Optional[datetime]
     assigned_applications: List[dict]
     assigned_file_categories: Optional[List[dict]] = None
+    file_management_permissions: Optional[dict] = None
     model_config = {
         'from_attributes': True  # Allow ORM models
     }

@@ -22,6 +22,19 @@ class User(BaseModel):
             self._data['assigned_application_ids'] = []
         if 'assigned_file_category_ids' not in self._data:
             self._data['assigned_file_category_ids'] = []
+        if 'file_management_permissions' not in self._data:
+            self._data['file_management_permissions'] = {
+                'can_rename_source': False,
+                'can_delete_source': False,
+                'can_upload': False,
+                'can_create_root_folder_source': False,
+                'can_create_folder_source': False,
+                'can_delete_destination': False,
+                'can_create_root_folder_destination': False,
+                'can_create_folder_destination': False,
+                'can_transfer': True,
+                'can_view_all_transfer_history': False
+            }
     
     def set_password(self, password):
         """Hash and set password"""
@@ -51,6 +64,7 @@ class User(BaseModel):
             'last_name': self.last_name if hasattr(self, 'last_name') else None,
             'created_date': self.created_date.isoformat() if hasattr(self, 'created_date') and self.created_date else None,
             'last_login': self.last_login.isoformat() if hasattr(self, 'last_login') and self.last_login else None,
+            'file_management_permissions': self.file_management_permissions if hasattr(self, 'file_management_permissions') else None,
         }
         
         # Load assigned applications if needed
@@ -110,6 +124,7 @@ class User(BaseModel):
             'last_name': self.last_name if hasattr(self, 'last_name') else None,
             'created_date': self.created_date.isoformat() if hasattr(self, 'created_date') and self.created_date else None,
             'last_login': self.last_login.isoformat() if hasattr(self, 'last_login') and self.last_login else None,
+            'file_management_permissions': self.file_management_permissions if hasattr(self, 'file_management_permissions') else None,
         }
         
         # Import once for both applications and file categories
