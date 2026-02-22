@@ -660,3 +660,43 @@ def get_user_permissions_by_id(user_id):
         user_data['permissions'] = user_data['file_management_permissions']
         
     return jsonify(user_data), 200
+
+
+@users_bp.route('/<user_id>/minimal', methods=['GET'])
+def get_user_minimal_by_id(user_id):
+    """Get minimal user info by User ID (JWT secret check for microservices)"""
+    # Get JWT secret from headers
+    jwt_secret_header = request.headers.get('X-JWT-Secret') or request.headers.get('Authorization', '').replace('Bearer ', '')
+
+    if not jwt_secret_header:
+        return jsonify({
+            'error': {
+                'code': 'UNAUTHORIZED',
+                'message': 'JWT secret is required'
+            }
+        }), 401
+
+    # Validate JWT secret against configured secret
+    jwt_secret = current_app.config.get('JWT_SECRET_KEY') or os.environ.get('JWT_SECRET_KEY')
+    if jwt_secret_header != jwt_secret:
+        return jsonify({
+            'error': {
+                'code': 'UNAUTHORIZED',
+                'message': 'Invalid JWT secret'
+            }
+        }), 401
+
+    user = User.get_by_id(user_id)
+    if not user:
+        return jsonify({
+            'error': {
+                'code': 'USER_NOT_FOUND',
+                'message': f'User with id {user_id} not found'
+            }
+        }), 404
+
+    return jsonify({
+        'id': user.id,
+        'email': getattr(user, 'email', None),
+        'role': getattr(user, 'role', None)
+    }), 200
