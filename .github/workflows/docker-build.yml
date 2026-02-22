@@ -12,6 +12,7 @@ on:
       - init-api
       - firestore-indexes
       - fix-categories
+      - answeer-validation-v2
 
       
 
