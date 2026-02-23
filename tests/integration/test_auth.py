@@ -4,7 +4,7 @@ def test_login_success(client, app, api_prefix):
     from app.models import User
     with app.app_context():
         # Create test user
-        user = User(email='test@example.com', role='user', status='active')
+        user = User(email='test@example.com', role='staff', status='active')
         user.set_password('password123')
         db.session.add(user)
         db.session.commit()

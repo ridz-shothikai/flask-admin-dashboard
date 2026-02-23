@@ -15,7 +15,7 @@ firestore_indexes_bp = Blueprint('firestore_indexes', __name__)
 def require_superadmin():
     """Decorator to require superadmin role"""
     claims = get_jwt()
-    role = claims.get('role', 'user')
+    role = claims.get('role', 'staff')
     if role != 'superadmin':
         return jsonify({'error': 'Superadmin access required'}), 403
     return None

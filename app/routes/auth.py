@@ -710,7 +710,7 @@ def verify_token():
                 }), 200
             
             # Get token claims
-            role = decoded_token.get('role', 'user')
+            role = decoded_token.get('role', 'staff')
             exp = decoded_token.get('exp')
             iat = decoded_token.get('iat')
             token_type = decoded_token.get('type', 'access')

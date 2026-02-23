@@ -15,11 +15,11 @@ def test_user_to_dict(app):
     with app.app_context():
         user = User(
             email='test@example.com',
-            role='admin',
+            role='superuser',
             status='active'
         )
         data = user.to_dict()
         assert data['email'] == 'test@example.com'
-        assert data['role'] == 'admin'
+        assert data['role'] == 'superuser'
         assert 'password_hash' not in data
 

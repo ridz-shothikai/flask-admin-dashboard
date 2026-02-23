@@ -15,24 +15,10 @@ from app.utils.validation import validate_json_body, validate_query_params
 users_bp = Blueprint('users', __name__)
 
 
-def require_admin():
-    """Decorator to require admin or superadmin role"""
-    claims = get_jwt()
-    role = claims.get('role', 'user')
-    if role not in ['admin', 'superadmin']:
-        return jsonify({
-            'error': {
-                'code': 'FORBIDDEN',
-                'message': 'Admin access required'
-            }
-        }), 403
-    return None
-
-
 def require_superadmin():
     """Decorator to require superadmin role only"""
     claims = get_jwt()
-    role = claims.get('role', 'user')
+    role = claims.get('role', 'staff')
     if role != 'superadmin':
         return jsonify({
             'error': {
@@ -506,10 +492,10 @@ def get_roles():
     return jsonify({
         'roles': [
             {'value': 'superadmin', 'label': 'Super Admin'},
-            {'value': 'admin', 'label': 'Admin'},
+            {'value': 'superuser', 'label': 'Super User'},
             {'value': 'manager', 'label': 'Manager'},
-            {'value': 'user', 'label': 'User'},
-            {'value': 'clark', 'label': 'Clark'}
+            {'value': 'supervisor', 'label': 'Supervisor'},
+            {'value': 'staff', 'label': 'Staff'}
         ]
     }), 200
 

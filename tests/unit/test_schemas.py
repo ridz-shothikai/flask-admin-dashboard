@@ -37,7 +37,7 @@ def test_user_create_schema_defaults():
         'password': 'password123'
     }
     schema = UserCreateSchema(**data)
-    assert schema.role == 'user'
+    assert schema.role == 'staff'
     assert schema.status == 'active'
     assert schema.application_ids == []
 

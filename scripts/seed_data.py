@@ -117,16 +117,16 @@ def seed_database():
             {
                 'email': 'admin@example.com',
                 'password': 'Admin123!',
-                'role': 'admin',
+                'role': 'superuser',
                 'status': 'active',
                 'first_name': 'John',
                 'last_name': 'Administrator',
-                'apps': ['Dashboard', 'Region 14']
+                'apps': ['Dashboard', 'Region 14', 'Region 2', 'Analytics']
             },
             {
                 'email': 'user1@example.com',
                 'password': 'User123!',
-                'role': 'user',
+                'role': 'manager',
                 'status': 'active',
                 'first_name': 'Alice',
                 'last_name': 'Johnson',
@@ -135,7 +135,7 @@ def seed_database():
             {
                 'email': 'user2@example.com',
                 'password': 'User123!',
-                'role': 'user',
+                'role': 'supervisor',
                 'status': 'active',
                 'first_name': 'Bob',
                 'last_name': 'Smith',
@@ -144,7 +144,7 @@ def seed_database():
             {
                 'email': 'inactive@example.com',
                 'password': 'User123!',
-                'role': 'user',
+                'role': 'staff',
                 'status': 'inactive',
                 'first_name': 'Charlie',
                 'last_name': 'Inactive',
@@ -153,7 +153,7 @@ def seed_database():
             {
                 'email': 'newuser@example.com',
                 'password': 'User123!',
-                'role': 'user',
+                'role': 'staff',
                 'status': 'active',
                 'first_name': 'Diana',
                 'last_name': 'New',

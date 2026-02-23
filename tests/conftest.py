@@ -33,7 +33,7 @@ def auth_headers(client, app):
     # Create a test user
     from app import db
     from app.models import User
-    user = User(email='admin@test.com', role='admin', status='active')
+    user = User(email='admin@test.com', role='superuser', status='active')
     user.set_password('password123')
     db.session.add(user)
     db.session.commit()

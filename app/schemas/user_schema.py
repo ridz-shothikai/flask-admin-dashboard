@@ -58,7 +58,7 @@ class UserCreateSchema(BaseModel):
     """User creation schema"""
     email: EmailStr
     password: str = Field(..., min_length=6)
-    role: Literal['user', 'admin', 'superadmin', 'manager', 'clark'] = 'user'
+    role: Literal['superadmin', 'superuser', 'manager', 'supervisor', 'staff'] = 'staff'
     status: Literal['active', 'inactive'] = 'active'
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -101,7 +101,7 @@ class UserUpdateSchema(BaseModel):
     """User update schema - all fields optional"""
     email: Optional[EmailStr] = None
     password: Optional[str] = Field(None, min_length=6)
-    role: Optional[Literal['user', 'admin', 'superadmin', 'manager', 'clark']] = None
+    role: Optional[Literal['superadmin', 'superuser', 'manager', 'supervisor', 'staff']] = None
     status: Optional[Literal['active', 'inactive']] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None

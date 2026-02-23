@@ -13,7 +13,7 @@ class User(BaseModel):
         super().__init__(**kwargs)
         # Set defaults
         if 'role' not in self._data:
-            self._data['role'] = 'user'
+            self._data['role'] = 'staff'
         if 'status' not in self._data:
             self._data['status'] = 'active'
         if 'created_date' not in self._data:
