@@ -248,9 +248,107 @@ def create_user(validated_data: UserCreateSchema):
     if validated_data.file_category_ids:
         user.assigned_file_category_ids = validated_data.file_category_ids
 
-    # Assign file management permissions
-    if validated_data.file_management_permissions:
-        user.file_management_permissions = validated_data.file_management_permissions.model_dump()
+    # Set permissions based on role
+    if validated_data.role == 'superadmin':
+        # Superadmin: all permissions enabled
+        user.file_management_permissions = {
+            'can_rename_source': True,
+            'can_delete_source': True,
+            'can_upload': True,
+            'can_create_root_folder_source': True,
+            'can_create_folder_source': True,
+            'can_delete_destination': True,
+            'can_create_root_folder_destination': True,
+            'can_create_folder_destination': True,
+            'can_transfer': True,
+            'can_view_all_transfer_history': True
+        }
+        user.admin_panel_access_permission = {
+            'can_access_regions': True,
+            'can_manage_users': True,
+            'can_manage_roles': True,
+            'can_update_settings': True
+        }
+    elif validated_data.role == 'superuser':
+        # Superuser: all file management permissions, only can_access_regions in admin panel
+        user.file_management_permissions = {
+            'can_rename_source': True,
+            'can_delete_source': True,
+            'can_upload': True,
+            'can_create_root_folder_source': False,
+            'can_create_folder_source': True,
+            'can_delete_destination': False,
+            'can_create_root_folder_destination': False,
+            'can_create_folder_destination': True,
+            'can_transfer': True,
+            'can_view_all_transfer_history': True
+        }
+        user.admin_panel_access_permission = {
+            'can_access_regions': True,
+            'can_manage_users': False,
+            'can_manage_roles': False,
+            'can_update_settings': False
+        }
+    elif validated_data.role == 'manager':
+        # Manager: specific file management permissions, no admin panel access
+        user.file_management_permissions = {
+            'can_rename_source': True,
+            'can_delete_source': True,
+            'can_upload': True,
+            'can_create_root_folder_source': False,
+            'can_create_folder_source': True,
+            'can_delete_destination': False,
+            'can_create_root_folder_destination': False,
+            'can_create_folder_destination': True,
+            'can_transfer': True,
+            'can_view_all_transfer_history': True
+        }
+        user.admin_panel_access_permission = {
+            'can_access_regions': False,
+            'can_manage_users': False,
+            'can_manage_roles': False,
+            'can_update_settings': False
+        }
+    elif validated_data.role == 'supervisor':
+        # Supervisor: specific file management permissions, no admin panel access
+        user.file_management_permissions = {
+            'can_rename_source': True,
+            'can_delete_source': False,
+            'can_upload': True,
+            'can_create_root_folder_source': False,
+            'can_create_folder_source': True,
+            'can_delete_destination': False,
+            'can_create_root_folder_destination': False,
+            'can_create_folder_destination': False,
+            'can_transfer': True,
+            'can_view_all_transfer_history': True
+        }
+        user.admin_panel_access_permission = {
+            'can_access_regions': False,
+            'can_manage_users': False,
+            'can_manage_roles': False,
+            'can_update_settings': False
+        }
+    elif validated_data.role == 'staff':
+        # Staff: specific file management permissions, no admin panel access
+        user.file_management_permissions = {
+            'can_rename_source': True,
+            'can_delete_source': False,
+            'can_upload': True,
+            'can_create_root_folder_source': False,
+            'can_create_folder_source': True,
+            'can_delete_destination': False,
+            'can_create_root_folder_destination': False,
+            'can_create_folder_destination': False,
+            'can_transfer': True,
+            'can_view_all_transfer_history': False
+        }
+        user.admin_panel_access_permission = {
+            'can_access_regions': False,
+            'can_manage_users': False,
+            'can_manage_roles': False,
+            'can_update_settings': False
+        }
 
     user.save()
 
@@ -408,9 +506,12 @@ def update_user(user_id, validated_data: UserUpdateSchema):
             }), 400
         user.assigned_file_category_ids = validated_data.file_category_ids
 
-    # Update file management permissions
+    # Update permissions only if explicitly provided (superadmin can set custom permissions)
     if validated_data.file_management_permissions is not None:
         user.file_management_permissions = validated_data.file_management_permissions.model_dump()
+
+    if validated_data.admin_panel_access_permission is not None:
+        user.admin_panel_access_permission = validated_data.admin_panel_access_permission.model_dump()
 
     user.save()
 

@@ -54,6 +54,14 @@ class FileManagementPermissionsSchema(BaseModel):
     can_view_all_transfer_history: bool = False
 
 
+class AdminPanelAccessPermissionSchema(BaseModel):
+    """Admin panel access permissions schema"""
+    can_access_regions: bool = False
+    can_manage_users: bool = False
+    can_manage_roles: bool = False
+    can_update_settings: bool = False
+
+
 class UserCreateSchema(BaseModel):
     """User creation schema"""
     email: EmailStr
@@ -65,6 +73,7 @@ class UserCreateSchema(BaseModel):
     application_ids: List[str] = Field(default_factory=list, description="List of application IDs (strings)")
     file_category_ids: List[str] = Field(default_factory=list, description="List of file category IDs (strings)")
     file_management_permissions: Optional[FileManagementPermissionsSchema] = None
+    admin_panel_access_permission: Optional[AdminPanelAccessPermissionSchema] = None
     
     @field_validator('application_ids', mode='before')
     @classmethod
@@ -108,6 +117,7 @@ class UserUpdateSchema(BaseModel):
     application_ids: Optional[List[str]] = None
     file_category_ids: Optional[List[str]] = None
     file_management_permissions: Optional[FileManagementPermissionsSchema] = None
+    admin_panel_access_permission: Optional[AdminPanelAccessPermissionSchema] = None
     
     @field_validator('application_ids', mode='before')
     @classmethod
@@ -186,6 +196,7 @@ class UserResponseSchema(BaseModel):
     assigned_applications: List[dict]
     assigned_file_categories: Optional[List[dict]] = None
     file_management_permissions: Optional[dict] = None
+    admin_panel_access_permission: Optional[dict] = None
     model_config = {
         'from_attributes': True  # Allow ORM models
     }

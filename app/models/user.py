@@ -35,6 +35,13 @@ class User(BaseModel):
                 'can_transfer': True,
                 'can_view_all_transfer_history': False
             }
+        if 'admin_panel_access_permission' not in self._data:
+            self._data['admin_panel_access_permission'] = {
+                'can_access_regions': False,
+                'can_manage_users': False,
+                'can_manage_roles': False,
+                'can_update_settings': False
+            }
     
     def set_password(self, password):
         """Hash and set password"""
@@ -65,6 +72,7 @@ class User(BaseModel):
             'created_date': self.created_date.isoformat() if hasattr(self, 'created_date') and self.created_date else None,
             'last_login': self.last_login.isoformat() if hasattr(self, 'last_login') and self.last_login else None,
             'file_management_permissions': self.file_management_permissions if hasattr(self, 'file_management_permissions') else None,
+            'admin_panel_access_permission': self.admin_panel_access_permission if hasattr(self, 'admin_panel_access_permission') else None,
         }
         
         # Load assigned applications if needed
@@ -125,6 +133,7 @@ class User(BaseModel):
             'created_date': self.created_date.isoformat() if hasattr(self, 'created_date') and self.created_date else None,
             'last_login': self.last_login.isoformat() if hasattr(self, 'last_login') and self.last_login else None,
             'file_management_permissions': self.file_management_permissions if hasattr(self, 'file_management_permissions') else None,
+            'admin_panel_access_permission': self.admin_panel_access_permission if hasattr(self, 'admin_panel_access_permission') else None,
         }
         
         # Import once for both applications and file categories
