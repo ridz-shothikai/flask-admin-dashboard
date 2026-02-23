@@ -9,7 +9,7 @@ from flask_jwt_extended import jwt_required, get_jwt
 from typing import Dict, Any
 import firebase_admin
 
-firestore_indexes_bp = Blueprint('firestore_indexes', __name__, url_prefix='/api/firestore/indexes')
+firestore_indexes_bp = Blueprint('firestore_indexes', __name__)
 
 
 def require_superadmin():

@@ -12,7 +12,7 @@ from app.schemas.user_schema import (
 from app.models import FileCategory
 from app.utils.validation import validate_json_body, validate_query_params
 
-users_bp = Blueprint('users', __name__, url_prefix='/api/users')
+users_bp = Blueprint('users', __name__)
 
 
 def require_admin():

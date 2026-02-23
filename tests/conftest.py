@@ -28,7 +28,7 @@ def client(app):
 
 
 @pytest.fixture
-def auth_headers(client):
+def auth_headers(client, app):
     """Create authenticated headers"""
     # Create a test user
     from app import db
@@ -38,8 +38,11 @@ def auth_headers(client):
     db.session.add(user)
     db.session.commit()
 
+    # Get API prefix from config
+    api_prefix = app.config.get('API_PREFIX', '/api')
+    
     # Login
-    response = client.post('/api/auth/login', json={
+    response = client.post(f'{api_prefix}/auth/login', json={
         'email': 'admin@test.com',
         'password': 'password123'
     })
@@ -47,4 +50,10 @@ def auth_headers(client):
     return {
         'Authorization': f'Bearer {token}'
     }
+
+
+@pytest.fixture
+def api_prefix(app):
+    """Get API prefix from app config"""
+    return app.config.get('API_PREFIX', '/api')
 

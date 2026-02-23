@@ -21,7 +21,7 @@ from app.utils.saml_utils import prepare_flask_request, load_saml_settings_from_
 # Configure logger
 logger = logging.getLogger(__name__)
 
-auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
+auth_bp = Blueprint('auth', __name__)
 
 
 def find_user_by_email(email):

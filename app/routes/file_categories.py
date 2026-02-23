@@ -14,7 +14,7 @@ from app.schemas.file_category_schema import (
 )
 from app.utils.validation import validate_json_body, validate_query_params
 
-file_categories_bp = Blueprint('file_categories', __name__, url_prefix='/api/file-categories')
+file_categories_bp = Blueprint('file_categories', __name__)
 
 # Valid categories list (fallback when no categories are fetched)
 VALID_CATEGORIES = [

@@ -9,7 +9,7 @@ from app.schemas.application_schema import (
 )
 from app.utils.validation import validate_json_body, validate_query_params
 
-applications_bp = Blueprint('applications', __name__, url_prefix='/api/applications')
+applications_bp = Blueprint('applications', __name__)
 
 
 def require_admin():

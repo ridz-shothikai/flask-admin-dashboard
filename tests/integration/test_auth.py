@@ -1,4 +1,4 @@
-def test_login_success(client, app):
+def test_login_success(client, app, api_prefix):
     """Test successful login"""
     from app import db
     from app.models import User
@@ -10,7 +10,7 @@ def test_login_success(client, app):
         db.session.commit()
 
         # Attempt login
-        response = client.post('/api/auth/login', json={
+        response = client.post(f'{api_prefix}/auth/login', json={
             'email': 'test@example.com',
             'password': 'password123'
         })
@@ -19,9 +19,9 @@ def test_login_success(client, app):
         assert 'refresh_token' in response.json
 
 
-def test_login_invalid_credentials(client):
+def test_login_invalid_credentials(client, api_prefix):
     """Test login with invalid credentials"""
-    response = client.post('/api/auth/login', json={
+    response = client.post(f'{api_prefix}/auth/login', json={
         'email': 'nonexistent@example.com',
         'password': 'wrongpassword'
     })

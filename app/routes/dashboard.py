@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from app.models import User, Application, ActivityLog, SystemMetric
 from app.utils.monitoring import get_system_health
 
-dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
+dashboard_bp = Blueprint('dashboard', __name__)
 
 
 def _normalize_datetime(dt):

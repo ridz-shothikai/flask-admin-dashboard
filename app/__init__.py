@@ -61,13 +61,16 @@ def create_app(config_object=None):
     from app.routes.firestore_indexes import firestore_indexes_bp
     from app.routes.redis_cache import redis_cache_bp
 
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(users_bp)
-    app.register_blueprint(applications_bp)
-    app.register_blueprint(dashboard_bp)
-    app.register_blueprint(file_categories_bp)
-    app.register_blueprint(firestore_indexes_bp)
-    app.register_blueprint(redis_cache_bp)
+    # Get API prefix from config
+    api_prefix = app.config.get('API_PREFIX', '/api')
+
+    app.register_blueprint(auth_bp, url_prefix=f'{api_prefix}/auth')
+    app.register_blueprint(users_bp, url_prefix=f'{api_prefix}/users')
+    app.register_blueprint(applications_bp, url_prefix=f'{api_prefix}/applications')
+    app.register_blueprint(dashboard_bp, url_prefix=f'{api_prefix}/dashboard')
+    app.register_blueprint(file_categories_bp, url_prefix=f'{api_prefix}/file-categories')
+    app.register_blueprint(firestore_indexes_bp, url_prefix=f'{api_prefix}/firestore/indexes')
+    app.register_blueprint(redis_cache_bp, url_prefix=f'{api_prefix}/system/redis')
 
     # Start background metrics collector (optional)
     # from app.utils.background_tasks import MetricsCollector

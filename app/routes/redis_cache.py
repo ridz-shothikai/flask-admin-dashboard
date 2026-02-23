@@ -12,7 +12,7 @@ from app.utils.redis_util import (
 )
 from app.middleware.activity_logger import log_activity
 
-redis_cache_bp = Blueprint('redis_cache', __name__, url_prefix='/api/system/redis')
+redis_cache_bp = Blueprint('redis_cache', __name__)
 
 
 def require_superadmin():
