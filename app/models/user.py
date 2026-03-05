@@ -42,6 +42,8 @@ class User(BaseModel):
                 'can_manage_roles': False,
                 'can_update_settings': False
             }
+        if 'last_accessed_region' not in self._data:
+            self._data['last_accessed_region'] = None
     
     def set_password(self, password):
         """Hash and set password"""
@@ -71,6 +73,7 @@ class User(BaseModel):
             'last_name': self.last_name if hasattr(self, 'last_name') else None,
             'created_date': self.created_date.isoformat() if hasattr(self, 'created_date') and self.created_date else None,
             'last_login': self.last_login.isoformat() if hasattr(self, 'last_login') and self.last_login else None,
+            'last_accessed_region': self.last_accessed_region if hasattr(self, 'last_accessed_region') else None,
             'file_management_permissions': self.file_management_permissions if hasattr(self, 'file_management_permissions') else None,
             'admin_panel_access_permission': self.admin_panel_access_permission if hasattr(self, 'admin_panel_access_permission') else None,
         }
@@ -132,6 +135,7 @@ class User(BaseModel):
             'last_name': self.last_name if hasattr(self, 'last_name') else None,
             'created_date': self.created_date.isoformat() if hasattr(self, 'created_date') and self.created_date else None,
             'last_login': self.last_login.isoformat() if hasattr(self, 'last_login') and self.last_login else None,
+            'last_accessed_region': self.last_accessed_region if hasattr(self, 'last_accessed_region') else None,
             'file_management_permissions': self.file_management_permissions if hasattr(self, 'file_management_permissions') else None,
             'admin_panel_access_permission': self.admin_panel_access_permission if hasattr(self, 'admin_panel_access_permission') else None,
         }

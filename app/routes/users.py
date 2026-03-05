@@ -7,7 +7,8 @@ from app.schemas.user_schema import (
     UserCreateSchema,
     UserUpdateSchema,
     UserQuerySchema,
-    InitSuperuserSchema
+    InitSuperuserSchema,
+    LastAccessedRegionSchema
 )
 from app.models import FileCategory
 from app.utils.validation import validate_json_body, validate_query_params
@@ -239,6 +240,10 @@ def create_user(validated_data: UserCreateSchema):
         last_name=validated_data.last_name
     )
     user.set_password(validated_data.password)
+
+    # Set last accessed region if provided
+    if validated_data.last_accessed_region:
+        user.last_accessed_region = validated_data.last_accessed_region
 
     # Assign applications
     if validated_data.application_ids:
@@ -483,6 +488,9 @@ def update_user(user_id, validated_data: UserUpdateSchema):
     if validated_data.last_name is not None:
         user.last_name = validated_data.last_name
 
+    if validated_data.last_accessed_region is not None:
+        user.last_accessed_region = validated_data.last_accessed_region
+
     # Update applications
     if validated_data.application_ids is not None:
         user.assigned_application_ids = validated_data.application_ids
@@ -528,6 +536,41 @@ def update_user(user_id, validated_data: UserUpdateSchema):
     return jsonify({
         'message': 'User updated successfully',
         'user': user.to_dict()
+    }), 200
+
+
+@users_bp.route('/me/last-accessed-region', methods=['PUT'])
+@jwt_required()
+@validate_json_body(LastAccessedRegionSchema)
+def update_last_accessed_region(validated_data: LastAccessedRegionSchema):
+    """Update last accessed region for the current authenticated user"""
+    current_user_id = get_jwt_identity()
+    
+    user = User.get_by_id(current_user_id)
+    if not user:
+        return jsonify({
+            'error': {
+                'code': 'USER_NOT_FOUND',
+                'message': 'Current user not found'
+            }
+        }), 404
+    
+    # Update last accessed region
+    user.last_accessed_region = validated_data.last_accessed_region
+    user.save()
+    
+    # Log activity
+    activity = ActivityLog(
+        event_type='last_accessed_region_updated',
+        user_id=current_user_id,
+        description=f'Updated last accessed region to: {validated_data.last_accessed_region}',
+        ip_address=request.remote_addr
+    )
+    activity.save()
+    
+    return jsonify({
+        'message': 'Last accessed region updated successfully',
+        'last_accessed_region': user.last_accessed_region
     }), 200
 
 

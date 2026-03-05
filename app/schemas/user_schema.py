@@ -23,6 +23,11 @@ class PasswordChangeSchema(BaseModel):
         return v
 
 
+class LastAccessedRegionSchema(BaseModel):
+    """Last accessed region update schema"""
+    last_accessed_region: Optional[str] = None
+
+
 class InitSuperuserSchema(BaseModel):
     """Superuser initialization schema (same as UserCreateSchema but without application_ids and file_category_ids)"""
     email: EmailStr
@@ -70,6 +75,7 @@ class UserCreateSchema(BaseModel):
     status: Literal['active', 'inactive'] = 'active'
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    last_accessed_region: Optional[str] = None
     application_ids: List[str] = Field(default_factory=list, description="List of application IDs (strings)")
     file_category_ids: List[str] = Field(default_factory=list, description="List of file category IDs (strings)")
     file_management_permissions: Optional[FileManagementPermissionsSchema] = None
@@ -114,6 +120,7 @@ class UserUpdateSchema(BaseModel):
     status: Optional[Literal['active', 'inactive']] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    last_accessed_region: Optional[str] = None
     application_ids: Optional[List[str]] = None
     file_category_ids: Optional[List[str]] = None
     file_management_permissions: Optional[FileManagementPermissionsSchema] = None
@@ -193,6 +200,7 @@ class UserResponseSchema(BaseModel):
     last_name: Optional[str]
     created_date: Optional[datetime]
     last_login: Optional[datetime]
+    last_accessed_region: Optional[str]
     assigned_applications: List[dict]
     assigned_file_categories: Optional[List[dict]] = None
     file_management_permissions: Optional[dict] = None
