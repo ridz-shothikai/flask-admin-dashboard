@@ -9,6 +9,11 @@ class LoginSchema(BaseModel):
     password: str = Field(..., min_length=6)
 
 
+class LastRegionSchema(BaseModel):
+    """Schema for saving last used region"""
+    application_id: str = Field(..., description="ID of the last used region application")
+
+
 class PasswordChangeSchema(BaseModel):
     """Password change request schema"""
     current_password: str = Field(..., min_length=1, description="Current password")

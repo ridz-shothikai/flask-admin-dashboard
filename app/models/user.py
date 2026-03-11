@@ -53,10 +53,19 @@ class User(BaseModel):
             'last_login': self.last_login.isoformat() if hasattr(self, 'last_login') and self.last_login else None,
         }
         
-        # Load assigned applications if needed
-        if hasattr(self, 'assigned_application_ids') and self.assigned_application_ids:
-            from app.models.application import Application
-            apps = []
+        # Load assigned applications
+        from app.models.application import Application
+        apps = []
+        
+        if self.role == 'superadmin':
+            # Super admins see all applications
+            if applications_cache is not None:
+                apps = [app.to_dict(user_count=app_user_counts.get(app_id) if app_user_counts else None) 
+                       for app_id, app in applications_cache.items()]
+            else:
+                all_apps = Application.get_all()
+                apps = [app.to_dict() for app in all_apps]
+        elif hasattr(self, 'assigned_application_ids') and self.assigned_application_ids:
             if applications_cache is not None:
                 # Use pre-loaded cache for O(1) lookup
                 for app_id in self.assigned_application_ids:
@@ -71,14 +80,22 @@ class User(BaseModel):
                     app = Application.get_by_id(app_id)
                     if app:
                         apps.append(app.to_dict())
-            result['assigned_applications'] = apps
-        else:
-            result['assigned_applications'] = []
         
-        # Load assigned file categories if needed
-        if hasattr(self, 'assigned_file_category_ids') and self.assigned_file_category_ids:
-            from app.models.file_category import FileCategory
-            categories = []
+        result['assigned_applications'] = apps
+        
+        # Load assigned file categories
+        from app.models.file_category import FileCategory
+        categories = []
+        
+        if self.role == 'superadmin':
+            # Super admins see all file categories
+            if file_categories_cache is not None:
+                categories = [cat.to_dict(user_count=category_user_counts.get(cat_id) if category_user_counts else None)
+                             for cat_id, cat in file_categories_cache.items()]
+            else:
+                all_categories = FileCategory.get_all()
+                categories = [cat.to_dict() for cat in all_categories]
+        elif hasattr(self, 'assigned_file_category_ids') and self.assigned_file_category_ids:
             if file_categories_cache is not None:
                 # Use pre-loaded cache for O(1) lookup
                 for category_id in self.assigned_file_category_ids:
@@ -93,9 +110,20 @@ class User(BaseModel):
                     category = FileCategory.get_by_id(category_id)
                     if category:
                         categories.append(category.to_dict())
-            result['assigned_file_categories'] = categories
-        else:
-            result['assigned_file_categories'] = []
+        
+        result['assigned_file_categories'] = categories
+        
+        
+        # Add last used region info
+        from app.models.region_usage import RegionUsage
+        from app.models.application import Application
+        last_usage = RegionUsage.get_by_user_id(self.id)
+        if last_usage:
+            result['last_region_id'] = last_usage.application_id
+            last_app = Application.get_by_id(last_usage.application_id)
+            if last_app:
+                result['last_region_url'] = last_app.url
+                result['last_region_name'] = last_app.name
         
         return result
     
@@ -116,11 +144,27 @@ class User(BaseModel):
         from app.db import get_db
         db = get_db()
         
-        # Batch load assigned applications - convert directly to dict without creating objects
-        if hasattr(self, 'assigned_application_ids') and self.assigned_application_ids:
+        # Batch load assigned applications
+        apps = []
+        if self.role == 'superadmin':
+            # Super admins see all applications
+            all_apps_docs = db.collection('applications').stream()
+            for doc in all_apps_docs:
+                if doc.exists:
+                    data = doc.to_dict()
+                    app_dict = {
+                        'id': doc.id,
+                        'name': data.get('name'),
+                        'description': data.get('description'),
+                        'url': data.get('url'),
+                        'status': data.get('status', 'active'),
+                        'created_date': data.get('created_date').isoformat() if data.get('created_date') else None,
+                        'last_updated': data.get('last_updated').isoformat() if data.get('last_updated') else None,
+                    }
+                    apps.append(app_dict)
+        elif hasattr(self, 'assigned_application_ids') and self.assigned_application_ids:
             # Batch load all applications in a single Firestore request
             app_refs = [db.collection('applications').document(app_id) for app_id in self.assigned_application_ids]
-            apps = []
             if app_refs:
                 docs = db.get_all(app_refs)
                 for doc in docs:
@@ -137,15 +181,30 @@ class User(BaseModel):
                             'last_updated': data.get('last_updated').isoformat() if data.get('last_updated') else None,
                         }
                         apps.append(app_dict)
-            result['assigned_applications'] = apps
-        else:
-            result['assigned_applications'] = []
+        result['assigned_applications'] = apps
         
-        # Batch load assigned file categories - convert directly to dict without creating objects
-        if hasattr(self, 'assigned_file_category_ids') and self.assigned_file_category_ids:
+        # Batch load assigned file categories
+        categories = []
+        if self.role == 'superadmin':
+            # Super admins see all file categories
+            all_cat_docs = db.collection('file_categories').stream()
+            for doc in all_cat_docs:
+                if doc.exists:
+                    data = doc.to_dict()
+                    category_dict = {
+                        'id': doc.id,
+                        'code': data.get('code'),
+                        'name': data.get('name') or data.get('code'),
+                        'description': data.get('description'),
+                        'status': data.get('status', 'active'),
+                        'short_code': data.get('short_code', []),
+                        'created_date': data.get('created_date').isoformat() if data.get('created_date') else None,
+                        'last_updated': data.get('last_updated').isoformat() if data.get('last_updated') else None,
+                    }
+                    categories.append(category_dict)
+        elif hasattr(self, 'assigned_file_category_ids') and self.assigned_file_category_ids:
             # Batch load all file categories in a single Firestore request
             category_refs = [db.collection('file_categories').document(cat_id) for cat_id in self.assigned_file_category_ids]
-            categories = []
             if category_refs:
                 docs = db.get_all(category_refs)
                 for doc in docs:
@@ -163,9 +222,18 @@ class User(BaseModel):
                             'last_updated': data.get('last_updated').isoformat() if data.get('last_updated') else None,
                         }
                         categories.append(category_dict)
-            result['assigned_file_categories'] = categories
-        else:
-            result['assigned_file_categories'] = []
+        result['assigned_file_categories'] = categories
+
+        # Add last used region info
+        from app.models.region_usage import RegionUsage
+        from app.models.application import Application
+        last_usage = RegionUsage.get_by_user_id(self.id)
+        if last_usage:
+            result['last_region_id'] = last_usage.application_id
+            last_app = Application.get_by_id(last_usage.application_id)
+            if last_app:
+                result['last_region_url'] = last_app.url
+                result['last_region_name'] = last_app.name
         
         return result
     

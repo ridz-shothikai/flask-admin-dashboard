@@ -710,10 +710,10 @@ def verify_token():
                 }), 200
             
             # Get token claims
-            role = decoded_token.get('role', 'user')
-            exp = decoded_token.get('exp')
-            iat = decoded_token.get('iat')
-            token_type = decoded_token.get('type', 'access')
+            role        = decoded_token.get('role', 'user')
+            exp         = decoded_token.get('exp')
+            iat         = decoded_token.get('iat')
+            token_type  = decoded_token.get('type', 'access')
             
             # Calculate expiration time
             expires_at = None
@@ -726,6 +726,8 @@ def verify_token():
                 additional_claims={'role': user.role}
             )
             refresh_token = create_refresh_token(identity=str(user.id))
+
+            print(user.to_dict_simple())
             
             return jsonify({
                 'valid': True,

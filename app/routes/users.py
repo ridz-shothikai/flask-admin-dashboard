@@ -6,9 +6,10 @@ from app.schemas.user_schema import (
     UserCreateSchema,
     UserUpdateSchema,
     UserQuerySchema,
-    InitSuperuserSchema
+    InitSuperuserSchema,
+    LastRegionSchema
 )
-from app.models import FileCategory
+from app.models import FileCategory, RegionUsage, Application
 from app.utils.validation import validate_json_body, validate_query_params
 
 users_bp = Blueprint('users', __name__, url_prefix='/api/users')
@@ -481,8 +482,38 @@ def delete_user(user_id):
     )
     activity.save()
 
+@users_bp.route('/last-region', methods=['POST'])
+@jwt_required()
+@validate_json_body(LastRegionSchema)
+def save_last_region(validated_data: LastRegionSchema):
+    """Save the last used region for the current user"""
+    user_id = get_jwt_identity()
+    
+    # Check if the application exists
+    app = Application.get_by_id(validated_data.application_id)
+    if not app:
+        return jsonify({
+            'error': {
+                'code': 'APPLICATION_NOT_FOUND',
+                'message': f'Application with id {validated_data.application_id} not found'
+            }
+        }), 404
+
+    # Update or create region usage
+    region_usage = RegionUsage.get_by_user_id(user_id)
+    if region_usage:
+        region_usage.application_id = validated_data.application_id
+        region_usage.save()
+    else:
+        region_usage = RegionUsage(
+            user_id=user_id,
+            application_id=validated_data.application_id
+        )
+        region_usage.save()
+
     return jsonify({
-        'message': 'User deleted successfully'
+        'message': 'Last region saved successfully',
+        'application_id': validated_data.application_id
     }), 200
 
 
