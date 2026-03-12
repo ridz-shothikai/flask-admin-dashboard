@@ -828,5 +828,7 @@ def get_user_minimal_by_id(user_id):
     return jsonify({
         'id': user.id,
         'email': getattr(user, 'email', None),
-        'role': getattr(user, 'role', None)
+        'role': getattr(user, 'role', None),
+        'first_name': getattr(user, 'first_name', None),
+        'last_name': getattr(user, 'last_name', None)
     }), 200
