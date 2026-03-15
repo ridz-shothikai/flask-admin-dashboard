@@ -600,3 +600,12 @@ def get_all_categories_api_key():
         'categories': FileCategory.get_active_summaries()
     }), 200
 
+
+@file_categories_bp.route('/all/jwt', methods=['GET'])
+@jwt_required()
+def get_all_categories_jwt():
+    """Get all active file categories (JWT authentication) - Returns only id, name, code, and short_code"""
+    return jsonify({
+        'categories': FileCategory.get_active_summaries()
+    }), 200
+
