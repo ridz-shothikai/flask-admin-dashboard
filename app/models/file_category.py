@@ -1,11 +1,14 @@
 from app.models.base import BaseModel
 from datetime import datetime
 from typing import Optional
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 
 class FileCategory(BaseModel):
     """FileCategory model for Firestore"""
     collection_name = 'file_categories'
+
+    SUMMARY_FIELDS = ('code', 'name', 'short_code')
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -50,6 +53,32 @@ class FileCategory(BaseModel):
         if exclude_id:
             categories = [c for c in categories if c.id != exclude_id]
         return len(categories) > 0
+
+    @classmethod
+    def get_active_summaries(cls):
+        """Get active categories with only the fields required by the public API."""
+        docs = (
+            cls.get_collection()
+            .where(filter=FieldFilter('status', '==', 'active'))
+            .select(list(cls.SUMMARY_FIELDS))
+            .stream()
+        )
+
+        summaries = []
+        for doc in docs:
+            data = doc.to_dict() or {}
+            code = data.get('code')
+            if not code:
+                continue
+
+            summaries.append({
+                'id': doc.id,
+                'name': data.get('name') or code,
+                'code': code,
+                'short_code': data.get('short_code') or []
+            })
+
+        return summaries
     
     def get_user_count(self) -> int:
         """Get count of users assigned to this category"""

@@ -596,19 +596,7 @@ def get_all_categories_api_key():
             }
         }), 401
     
-    # Get all file categories
-    all_categories = FileCategory.get_all()
-    
-    # Return simplified response with only name, code, and short_code
-    categories_list = []
-    for category in all_categories:
-        categories_list.append({
-            'name': category.name if hasattr(category, 'name') and category.name else category.code,
-            'code': category.code,
-            'short_code': category.short_code if hasattr(category, 'short_code') and category.short_code else []
-        })
-    
     return jsonify({
-        'categories': categories_list
+        'categories': FileCategory.get_active_summaries()
     }), 200
 
