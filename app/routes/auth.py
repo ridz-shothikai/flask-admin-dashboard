@@ -726,6 +726,8 @@ def verify_token():
                 additional_claims={'role': user.role, 'email': user.email}
             )
             refresh_token = create_refresh_token(identity=str(user.id))
+
+            print(user.to_dict_simple())
             
             return jsonify({
                 'valid': True,
