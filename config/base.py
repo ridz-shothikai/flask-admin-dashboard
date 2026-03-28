@@ -28,6 +28,10 @@ class Config:
     API_PREFIX = os.environ.get('API_PREFIX', '/api')
     # Frontend URL for SSO redirects
     FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+
+    # Backend URL used for cross-service folder creation calls
+    APPLICATION_BACKEND_URL = os.environ.get('APPLICATION_BACKEND_URL')
+    CREATE_FOLDER_ENDPOINT = os.environ.get('CREATE_FOLDER_ENDPOINT')
     
     # Redis Configuration (for cache management)
     REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')

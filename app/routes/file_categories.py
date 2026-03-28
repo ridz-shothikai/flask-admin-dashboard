@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from datetime import datetime
 from urllib.parse import urlparse, urlunparse
+import os
 import requests
 from typing import List, Set
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -28,6 +29,12 @@ VALID_CATEGORIES = [
     "PERSONNEL_FILES",
     "TRAVEL_REPORTS",
     "OTHER"
+]
+
+
+CATEGORY_FOLDER_PATHS = [
+    "Georgia 14/Pending Files/",
+    "Georgia 14/"
 ]
 
 
@@ -74,6 +81,85 @@ def _paginate_firestore(query_results, page, per_page):
         'has_next': end < total,
         'has_prev': page > 1
     }
+
+
+def _create_category_folders(category_name: str, auth_token: str = None, timeout: int = 10) -> None:
+    """Create category folders in required paths via application backend API."""
+    application_backend_url = (
+        current_app.config.get('APPLICATION_BACKEND_URL')
+        or os.environ.get('APPLICATION_BACKEND_URL')
+    )
+    create_folder_endpoint = (
+        current_app.config.get('CREATE_FOLDER_ENDPOINT')
+        or os.environ.get('CREATE_FOLDER_ENDPOINT')
+    )
+
+    if not application_backend_url:
+        current_app.logger.warning(
+            "APPLICATION_BACKEND_URL is not configured; skipping folder creation for category '%s'",
+            category_name
+        )
+        return
+
+    if not create_folder_endpoint:
+        current_app.logger.warning(
+            "CREATE_FOLDER_ENDPOINT is not configured; skipping folder creation for category '%s'",
+            category_name
+        )
+        return
+
+    create_folder_url = f"{application_backend_url.rstrip('/')}/{create_folder_endpoint.lstrip('/')}"
+    current_app.logger.info(
+        "Starting folder creation for category '%s' using endpoint '%s' across %d paths",
+        category_name,
+        create_folder_url,
+        len(CATEGORY_FOLDER_PATHS)
+    )
+
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    if auth_token:
+        headers['Authorization'] = f'Bearer {auth_token}'
+
+    for current_path in CATEGORY_FOLDER_PATHS:
+        payload = {
+            'folderName': category_name,
+            'currentPath': current_path
+        }
+        current_app.logger.debug(
+            "Creating folder for category '%s' at path '%s'",
+            category_name,
+            current_path
+        )
+        try:
+            response = requests.post(
+                create_folder_url,
+                json=payload,
+                headers=headers,
+                timeout=timeout
+            )
+            if response.status_code in (200, 201):
+                current_app.logger.info(
+                    "Folder created for category '%s' at path '%s'",
+                    category_name,
+                    current_path
+                )
+            else:
+                current_app.logger.warning(
+                    "Folder creation failed for category '%s' at path '%s'. Status: %s, Response: %s",
+                    category_name,
+                    current_path,
+                    response.status_code,
+                    response.text[:300]
+                )
+        except requests.exceptions.RequestException as exc:
+            current_app.logger.warning(
+                "Folder creation request error for category '%s' at path '%s': %s",
+                category_name,
+                current_path,
+                str(exc)
+            )
 
 
 @file_categories_bp.route('', methods=['GET'])
@@ -173,6 +259,15 @@ def create_file_category(validated_data: FileCategoryCreateSchema):
         short_code=validated_data.short_code if validated_data.short_code is not None else []
     )
     file_category.save()
+
+    # Forward JWT token (if present) for backend authorization while keeping this flow non-blocking.
+    auth_header = request.headers.get('Authorization', '')
+    auth_token = auth_header.split(' ', 1)[1] if auth_header.startswith('Bearer ') else None
+    current_app.logger.info(
+        "Category '%s' saved. Triggering folder creation workflow.",
+        file_category.name or file_category.code
+    )
+    _create_category_folders(file_category.name or file_category.code, auth_token=auth_token)
 
     # Log activity
     current_user_id = get_jwt_identity()
