@@ -15,6 +15,7 @@ on:
       - answeer-validation-v2
       - update-roles
       - last-accessed-region
+      - dipto_D160
 
       
 
