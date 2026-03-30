@@ -83,8 +83,30 @@ def _paginate_firestore(query_results, page, per_page):
     }
 
 
-def _create_category_folders(category_name: str, auth_token: str = None, timeout: int = 10) -> None:
-    """Create category folders in required paths via application backend API."""
+def _parse_folder_error(error_message: str, status_code: int) -> str:
+    """Parse folder creation error and return user-friendly message."""
+    error_lower = error_message.lower()
+    
+    # Check for specific error patterns
+    if 'already exists' in error_lower or 'exists' in error_lower:
+        return "A folder with this name already exists in one or more locations. Please use a different category name."
+    elif 'permission' in error_lower or 'access denied' in error_lower or 'forbidden' in error_lower:
+        return "You do not have permission to create folders. Please contact an administrator."
+    elif 'not found' in error_lower or 'invalid path' in error_lower:
+        return "The destination path is invalid or does not exist. Please contact an administrator."
+    elif 'timeout' in error_lower or status_code == 408:
+        return "The folder creation service took too long to respond. Please try again."
+    elif 'connection' in error_lower or 'network' in error_lower or status_code in (500, 502, 503, 504):
+        return "The folder creation service is currently unavailable. Please try again in a few moments."
+    else:
+        return f"Failed to create folders: {error_message}"
+
+
+def _create_category_folders(category_name: str, auth_token: str = None, timeout: int = 10) -> tuple:
+    """
+    Create category folders in required paths via application backend API.
+    Returns (success: bool, error_message: str or None)
+    """
     application_backend_url = (
         current_app.config.get('APPLICATION_BACKEND_URL')
         or os.environ.get('APPLICATION_BACKEND_URL')
@@ -95,18 +117,14 @@ def _create_category_folders(category_name: str, auth_token: str = None, timeout
     )
 
     if not application_backend_url:
-        current_app.logger.warning(
-            "APPLICATION_BACKEND_URL is not configured; skipping folder creation for category '%s'",
-            category_name
-        )
-        return
+        error_msg = "APPLICATION_BACKEND_URL is not configured. Please contact an administrator."
+        current_app.logger.error("Folder creation configuration error: %s", error_msg)
+        return False, error_msg
 
     if not create_folder_endpoint:
-        current_app.logger.warning(
-            "CREATE_FOLDER_ENDPOINT is not configured; skipping folder creation for category '%s'",
-            category_name
-        )
-        return
+        error_msg = "Folder creation endpoint is not configured. Please contact an administrator."
+        current_app.logger.error("Folder creation configuration error: %s", error_msg)
+        return False, error_msg
 
     create_folder_url = f"{application_backend_url.rstrip('/')}/{create_folder_endpoint.lstrip('/')}"
     current_app.logger.info(
@@ -146,20 +164,40 @@ def _create_category_folders(category_name: str, auth_token: str = None, timeout
                     current_path
                 )
             else:
-                current_app.logger.warning(
+                # Extract error message from response
+                error_text = response.text[:500]
+                try:
+                    error_data = response.json()
+                    if isinstance(error_data, dict):
+                        error_text = error_data.get('message') or error_data.get('error') or error_text
+                except (ValueError, requests.exceptions.JSONDecodeError):
+                    pass
+                
+                user_message = _parse_folder_error(error_text, response.status_code)
+                current_app.logger.error(
                     "Folder creation failed for category '%s' at path '%s'. Status: %s, Response: %s",
                     category_name,
                     current_path,
                     response.status_code,
-                    response.text[:300]
+                    error_text
                 )
+                return False, user_message
+        except requests.exceptions.Timeout:
+            error_msg = "The folder creation service took too long to respond. Please try again."
+            current_app.logger.error("Folder creation timeout for category '%s' at path '%s'", category_name, current_path)
+            return False, error_msg
+        except requests.exceptions.ConnectionError:
+            error_msg = "Unable to connect to folder creation service. Please try again in a few moments."
+            current_app.logger.error("Folder creation connection error for category '%s' at path '%s'", category_name, current_path)
+            return False, error_msg
         except requests.exceptions.RequestException as exc:
-            current_app.logger.warning(
-                "Folder creation request error for category '%s' at path '%s': %s",
-                category_name,
-                current_path,
-                str(exc)
-            )
+            error_msg = f"Unexpected error while creating folders: {str(exc)[:100]}"
+            current_app.logger.error("Folder creation request error for category '%s' at path '%s': %s", category_name, current_path, str(exc))
+            return False, error_msg
+    
+    # All folders created successfully
+    current_app.logger.info("All folders created successfully for category '%s'", category_name)
+    return True, None
 
 
 @file_categories_bp.route('', methods=['GET'])
@@ -250,7 +288,34 @@ def create_file_category(validated_data: FileCategoryCreateSchema):
             }
         }), 409
 
-    # Create file category
+    # IMPORTANT: Create folders BEFORE saving category for transactional integrity
+    # If folder creation fails, we don't create the category
+    category_display_name = validated_data.name or code
+    auth_header = request.headers.get('Authorization', '')
+    auth_token = auth_header.split(' ', 1)[1] if auth_header.startswith('Bearer ') else None
+    
+    current_app.logger.info(
+        "Attempting to create folders for new category '%s' before database save",
+        category_display_name
+    )
+    
+    folders_created, folder_error = _create_category_folders(category_display_name, auth_token=auth_token)
+    
+    if not folders_created:
+        # Folder creation failed - do NOT create the category
+        current_app.logger.error(
+            "Folder creation failed for category '%s'. Error: %s. Category creation aborted.",
+            category_display_name,
+            folder_error
+        )
+        return jsonify({
+            'error': {
+                'code': 'FOLDER_CREATION_FAILED',
+                'message': f'Failed to create category: {folder_error}'
+            }
+        }), 400
+
+    # Folders created successfully - now create the category
     file_category = FileCategory(
         code=code,
         name=validated_data.name or code,
@@ -260,14 +325,10 @@ def create_file_category(validated_data: FileCategoryCreateSchema):
     )
     file_category.save()
 
-    # Forward JWT token (if present) for backend authorization while keeping this flow non-blocking.
-    auth_header = request.headers.get('Authorization', '')
-    auth_token = auth_header.split(' ', 1)[1] if auth_header.startswith('Bearer ') else None
     current_app.logger.info(
-        "Category '%s' saved. Triggering folder creation workflow.",
+        "Category '%s' saved to database after successful folder creation",
         file_category.name or file_category.code
     )
-    _create_category_folders(file_category.name or file_category.code, auth_token=auth_token)
 
     # Log activity
     current_user_id = get_jwt_identity()
