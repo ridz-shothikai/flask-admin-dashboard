@@ -2,7 +2,7 @@
 Base model class for Firestore documents
 """
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from app.db import get_db
 
 
@@ -62,6 +62,23 @@ class BaseModel:
             data['id'] = doc.id
             return cls(**data)
         return None
+
+    @classmethod
+    def get_by_ids(cls, doc_ids: List[str]):
+        """Get multiple documents by IDs in a single bulk call"""
+        if not doc_ids:
+            return []
+
+        doc_refs = [cls.get_collection().document(doc_id) for doc_id in doc_ids if doc_id]
+        if not doc_refs:
+            return []
+
+        docs = get_db().get_all(doc_refs)
+        results = []
+        for doc in docs:
+            if doc.exists:
+                results.append(cls(id=doc.id, **doc.to_dict()))
+        return results
     
     @classmethod
     def get_all(cls, limit: Optional[int] = None):

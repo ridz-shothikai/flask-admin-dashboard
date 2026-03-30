@@ -646,11 +646,15 @@ def get_accessible_categories():
         return jsonify({
             'categories': []
         }), 200
-    
-    # Fetch categories
+
+    # Fetch categories in bulk to avoid one database call per ID.
+    unique_category_ids = list(dict.fromkeys(category_ids))
+    categories = FileCategory.get_by_ids(unique_category_ids)
+    categories_by_id = {category.id: category for category in categories}
+
     accessible_categories = []
     for category_id in category_ids:
-        category = FileCategory.get_by_id(category_id)
+        category = categories_by_id.get(category_id)
         if category:
             # Only return active categories
             if hasattr(category, 'status') and category.status == 'active':
