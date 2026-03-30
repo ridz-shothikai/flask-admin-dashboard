@@ -1,5 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app
 import os
+import threading
+import requests
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from datetime import datetime
 from app.models import User, ActivityLog
@@ -15,6 +17,60 @@ from app.models import FileCategory, RegionUsage, Application
 from app.utils.validation import validate_json_body, validate_query_params
 
 users_bp = Blueprint('users', __name__)
+
+
+def _invalidate_backend_user_cache_async(user_id: str) -> None:
+    """Fire-and-forget cache invalidation for updated user permissions."""
+    app = current_app._get_current_object()
+    backend_url = app.config.get('APPLICATION_BACKEND_URL') or os.environ.get('APPLICATION_BACKEND_URL')
+    jwt_secret_key = app.config.get('JWT_SECRET_KEY') or os.environ.get('JWT_SECRET_KEY')
+
+    if not backend_url:
+        app.logger.warning(
+            "APPLICATION_BACKEND_URL is not configured; skipping cache invalidation for user_id '%s'",
+            user_id
+        )
+        return
+
+    if not jwt_secret_key:
+        app.logger.warning(
+            "JWT_SECRET_KEY is not configured; skipping cache invalidation for user_id '%s'",
+            user_id
+        )
+        return
+
+    invalidate_url = f"{backend_url.rstrip('/')}/backend/api/v1/internal/cache/invalidate"
+    payload = {
+        'user_email': user_id
+    }
+    headers = {
+        'Content-Type': 'application/json',
+        'X-API-Key': jwt_secret_key
+    }
+
+    def _send_request():
+        try:
+            response = requests.post(
+                invalidate_url,
+                json=payload,
+                headers=headers,
+                timeout=5
+            )
+            if response.status_code >= 400:
+                app.logger.warning(
+                    "Cache invalidation failed for user_id '%s'. Status: %s, Response: %s",
+                    user_id,
+                    response.status_code,
+                    response.text[:300]
+                )
+        except requests.exceptions.RequestException as exc:
+            app.logger.warning(
+                "Cache invalidation request error for user_id '%s': %s",
+                user_id,
+                str(exc)
+            )
+
+    threading.Thread(target=_send_request, daemon=True).start()
 
 
 def require_superadmin():
@@ -515,6 +571,8 @@ def update_user(user_id, validated_data: UserUpdateSchema):
             }), 400
         user.assigned_file_category_ids = validated_data.file_category_ids
 
+    should_invalidate_cache = validated_data.file_category_ids is not None
+
     # Update permissions only if explicitly provided (superadmin can set custom permissions)
     if validated_data.file_management_permissions is not None:
         user.file_management_permissions = validated_data.file_management_permissions.model_dump()
@@ -523,6 +581,9 @@ def update_user(user_id, validated_data: UserUpdateSchema):
         user.admin_panel_access_permission = validated_data.admin_panel_access_permission.model_dump()
 
     user.save()
+
+    if should_invalidate_cache:
+        _invalidate_backend_user_cache_async(user_id)
 
     # Log activity
     current_user_id = get_jwt_identity()
