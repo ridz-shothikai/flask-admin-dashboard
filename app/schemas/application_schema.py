@@ -8,6 +8,8 @@ class ApplicationCreateSchema(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
     url: Optional[HttpUrl] = None
+    backend_url: Optional[str] = None
+    gcs_root_path: Optional[str] = None
     status: Literal['active', 'inactive', 'maintenance'] = 'active'
 
 
@@ -16,6 +18,8 @@ class ApplicationUpdateSchema(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
     url: Optional[HttpUrl] = None
+    backend_url: Optional[str] = None
+    gcs_root_path: Optional[str] = None
     status: Optional[Literal['active', 'inactive', 'maintenance']] = None
 
 
@@ -38,6 +42,8 @@ class ApplicationResponseSchema(BaseModel):
     name: str
     description: Optional[str]
     url: Optional[str]
+    backend_url: Optional[str] = None
+    gcs_root_path: Optional[str] = None
     status: str
     created_date: Optional[datetime]
     last_updated: Optional[datetime]

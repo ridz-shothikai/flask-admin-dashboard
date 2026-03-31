@@ -133,6 +133,8 @@ def create_application(validated_data: ApplicationCreateSchema):
         name=validated_data.name,
         description=validated_data.description,
         url=str(validated_data.url) if validated_data.url else None,
+        backend_url=validated_data.backend_url,
+        gcs_root_path=validated_data.gcs_root_path,
         status=validated_data.status
     )
     application.save()
@@ -204,6 +206,12 @@ def update_application(app_id, validated_data: ApplicationUpdateSchema):
 
     if validated_data.url is not None:
         application.url = str(validated_data.url) if validated_data.url else None
+
+    if validated_data.backend_url is not None:
+        application.backend_url = validated_data.backend_url
+
+    if validated_data.gcs_root_path is not None:
+        application.gcs_root_path = validated_data.gcs_root_path
 
     if validated_data.status:
         application.status = validated_data.status

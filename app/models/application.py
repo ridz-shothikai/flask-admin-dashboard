@@ -22,12 +22,14 @@ class Application(BaseModel):
         # Use provided user_count or calculate it if not provided (for backward compatibility)
         if user_count is None:
             user_count = self.get_user_count()
-        
+
         return {
             'id': self.id,
             'name': self.name,
             'description': self.description if hasattr(self, 'description') else None,
             'url': self.url if hasattr(self, 'url') else None,
+            'backend_url': self.backend_url if hasattr(self, 'backend_url') else None,
+            'gcs_root_path': self.gcs_root_path if hasattr(self, 'gcs_root_path') else None,
             'status': self.status,
             'created_date': self.created_date.isoformat() if hasattr(self, 'created_date') and self.created_date else None,
             'last_updated': self.last_updated.isoformat() if hasattr(self, 'last_updated') and self.last_updated else None,

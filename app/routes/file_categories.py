@@ -32,12 +32,6 @@ VALID_CATEGORIES = [
 ]
 
 
-CATEGORY_FOLDER_PATHS = [
-    "Georgia 14/Pending Files/",
-    "Georgia 14/"
-]
-
-
 def require_admin():
     """Decorator to require admin or superadmin role"""
     claims = get_jwt()
@@ -83,38 +77,36 @@ def _paginate_firestore(query_results, page, per_page):
     }
 
 
-def _create_category_folders(category_name: str, auth_token: str = None, timeout: int = 10) -> None:
-    """Create category folders in required paths via application backend API."""
-    application_backend_url = (
-        current_app.config.get('APPLICATION_BACKEND_URL')
-        or os.environ.get('APPLICATION_BACKEND_URL')
-    )
+def _create_category_folders(category_name: str, auth_token: str = None, timeout: int = 10) -> dict:
+    """Create category folders across ALL active applications (regions) via their backend APIs.
+
+    For each active application that has backend_url and gcs_root_path configured,
+    creates folders at:
+      - {gcs_root_path}/Pending Files/{category_name}  (source)
+      - {gcs_root_path}/{category_name}                 (destination)
+    """
+    from app.models import Application
+
     create_folder_endpoint = (
         current_app.config.get('CREATE_FOLDER_ENDPOINT')
         or os.environ.get('CREATE_FOLDER_ENDPOINT')
     )
-
-    if not application_backend_url:
-        current_app.logger.warning(
-            "APPLICATION_BACKEND_URL is not configured; skipping folder creation for category '%s'",
-            category_name
-        )
-        return
 
     if not create_folder_endpoint:
         current_app.logger.warning(
             "CREATE_FOLDER_ENDPOINT is not configured; skipping folder creation for category '%s'",
             category_name
         )
-        return
+        return {'total_regions': 0, 'results': [], 'summary': 'CREATE_FOLDER_ENDPOINT not configured'}
 
-    create_folder_url = f"{application_backend_url.rstrip('/')}/{create_folder_endpoint.lstrip('/')}"
-    current_app.logger.info(
-        "Starting folder creation for category '%s' using endpoint '%s' across %d paths",
-        category_name,
-        create_folder_url,
-        len(CATEGORY_FOLDER_PATHS)
-    )
+    # Fetch all active applications
+    all_apps = Application.query(status='active')
+    if not all_apps:
+        current_app.logger.warning(
+            "No active applications found; skipping folder creation for category '%s'",
+            category_name
+        )
+        return {'total_regions': 0, 'results': [], 'summary': 'No active applications found'}
 
     headers = {
         'Content-Type': 'application/json'
@@ -122,44 +114,156 @@ def _create_category_folders(category_name: str, auth_token: str = None, timeout
     if auth_token:
         headers['Authorization'] = f'Bearer {auth_token}'
 
-    for current_path in CATEGORY_FOLDER_PATHS:
-        payload = {
-            'folderName': category_name,
-            'currentPath': current_path
+    def create_folders_for_app(app, flask_app):
+        """Create source and destination folders for a single application.
+        Returns a dict with results for logging.
+
+        Args:
+            app: The Application model instance
+            flask_app: The Flask app object (passed explicitly for thread safety)
+        """
+        logger = flask_app.logger
+        app_name = getattr(app, 'name', 'unknown')
+        backend_url = getattr(app, 'backend_url', None)
+        gcs_root_path = getattr(app, 'gcs_root_path', None)
+
+        result = {
+            'app_name': app_name,
+            'source': False,
+            'destination': False,
+            'skipped': False,
+            'errors': []
         }
-        current_app.logger.debug(
-            "Creating folder for category '%s' at path '%s'",
-            category_name,
-            current_path
+
+        if not backend_url or not gcs_root_path:
+            logger.warning(
+                "Application '%s' (id=%s) missing backend_url or gcs_root_path; skipping",
+                app_name, app.id
+            )
+            result['skipped'] = True
+            return result
+
+        # Ensure gcs_root_path has no trailing slash for clean path construction
+        root = gcs_root_path.rstrip('/')
+        folder_paths = [
+            (f"{root}/Pending Files/", "source"),
+            (f"{root}/", "destination"),
+        ]
+
+        # Avoid path duplication: if backend_url ends with /backend and
+        # create_folder_endpoint starts with backend/, strip the overlap.
+        endpoint = create_folder_endpoint.lstrip('/')
+        base = backend_url.rstrip('/')
+        if base.endswith('/backend') and endpoint.startswith('backend/'):
+            endpoint = endpoint[len('backend/'):]
+        create_folder_url = f"{base}/{endpoint}"
+
+        for current_path, path_type in folder_paths:
+            payload = {
+                'folderName': category_name,
+                'currentPath': current_path
+            }
+            try:
+                response = requests.post(
+                    create_folder_url,
+                    json=payload,
+                    headers=headers,
+                    timeout=timeout
+                )
+                if response.status_code in (200, 201):
+                    result[path_type] = True
+                    logger.info(
+                        "[OK] Category '%s' → %s folder created at '%s' on region '%s'",
+                        category_name, path_type.upper(), current_path, app_name
+                    )
+                else:
+                    result['errors'].append(f"{path_type}: HTTP {response.status_code}")
+                    logger.warning(
+                        "[FAIL] Category '%s' → %s folder at '%s' on region '%s'. Status: %s, Response: %s",
+                        category_name, path_type.upper(), current_path, app_name,
+                        response.status_code, response.text[:300]
+                    )
+            except requests.exceptions.RequestException as exc:
+                result['errors'].append(f"{path_type}: {str(exc)}")
+                logger.warning(
+                    "[ERROR] Category '%s' → %s folder at '%s' on region '%s': %s",
+                    category_name, path_type.upper(), current_path, app_name, str(exc)
+                )
+
+        return result
+
+    # Capture Flask app reference for use inside thread pool workers
+    app = current_app._get_current_object()
+
+    # Create folders across all applications in parallel
+    total_apps = len(all_apps)
+    app.logger.info(
+        "========== FOLDER CREATION START: category '%s' across %d active region(s) ==========",
+        category_name, total_apps
+    )
+
+    results = []
+    with ThreadPoolExecutor(max_workers=min(total_apps, 10)) as executor:
+        futures = {executor.submit(create_folders_for_app, region_app, app): region_app for region_app in all_apps}
+        for future in as_completed(futures):
+            results.append(future.result())
+
+    # Log confirmation summary
+    succeeded_regions = [r['app_name'] for r in results if r['source'] and r['destination']]
+    partial_regions = [r['app_name'] for r in results if (r['source'] or r['destination']) and not (r['source'] and r['destination'])]
+    failed_regions = [r['app_name'] for r in results if not r['source'] and not r['destination'] and not r['skipped']]
+    skipped_regions = [r['app_name'] for r in results if r['skipped']]
+
+    app.logger.info(
+        "========== FOLDER CREATION COMPLETE: category '%s' ==========", category_name
+    )
+    app.logger.info(
+        "  RESULTS: %d/%d regions succeeded (source + destination)",
+        len(succeeded_regions), total_apps
+    )
+    if succeeded_regions:
+        app.logger.info(
+            "  ✓ SUCCESS (source + destination): %s", ", ".join(succeeded_regions)
         )
-        try:
-            response = requests.post(
-                create_folder_url,
-                json=payload,
-                headers=headers,
-                timeout=timeout
-            )
-            if response.status_code in (200, 201):
-                current_app.logger.info(
-                    "Folder created for category '%s' at path '%s'",
-                    category_name,
-                    current_path
-                )
-            else:
-                current_app.logger.warning(
-                    "Folder creation failed for category '%s' at path '%s'. Status: %s, Response: %s",
-                    category_name,
-                    current_path,
-                    response.status_code,
-                    response.text[:300]
-                )
-        except requests.exceptions.RequestException as exc:
-            current_app.logger.warning(
-                "Folder creation request error for category '%s' at path '%s': %s",
-                category_name,
-                current_path,
-                str(exc)
-            )
+    if partial_regions:
+        app.logger.warning(
+            "  ⚠ PARTIAL (only source or destination): %s", ", ".join(partial_regions)
+        )
+    if failed_regions:
+        app.logger.error(
+            "  ✗ FAILED (both source and destination): %s", ", ".join(failed_regions)
+        )
+    if skipped_regions:
+        app.logger.warning(
+            "  ⊘ SKIPPED (missing backend_url/gcs_root_path): %s", ", ".join(skipped_regions)
+        )
+
+    # Build response-friendly results
+    folder_results = []
+    for r in results:
+        status = 'skipped'
+        if r['skipped']:
+            status = 'skipped'
+        elif r['source'] and r['destination']:
+            status = 'success'
+        elif r['source'] or r['destination']:
+            status = 'partial'
+        else:
+            status = 'failed'
+
+        folder_results.append({
+            'region': r['app_name'],
+            'status': status,
+            'source_created': r['source'],
+            'destination_created': r['destination'],
+            'errors': r['errors'] if r['errors'] else None,
+        })
+
+    return {
+        'total_regions': total_apps,
+        'results': folder_results,
+        'summary': f"{len(succeeded_regions)}/{total_apps} regions succeeded",
+    }
 
 
 @file_categories_bp.route('', methods=['GET'])
@@ -204,8 +308,17 @@ def get_file_categories(validated_data: FileCategoryQuerySchema):
     # Pagination
     pagination = _paginate_firestore(filtered_categories, validated_data.page, validated_data.per_page)
 
+    # Pre-compute user counts in a single pass (avoids N+1 Firestore reads)
+    from app.models.user import User
+    all_users = User.get_all()
+    category_user_counts = {}
+    for user in all_users:
+        if hasattr(user, 'assigned_file_category_ids') and user.assigned_file_category_ids:
+            for cat_id in user.assigned_file_category_ids:
+                category_user_counts[cat_id] = category_user_counts.get(cat_id, 0) + 1
+
     return jsonify({
-        'file_categories': [cat.to_dict() for cat in pagination['items']],
+        'file_categories': [cat.to_dict(user_count=category_user_counts.get(cat.id, 0)) for cat in pagination['items']],
         'pagination': {
             'page': validated_data.page,
             'per_page': validated_data.per_page,
@@ -267,7 +380,7 @@ def create_file_category(validated_data: FileCategoryCreateSchema):
         "Category '%s' saved. Triggering folder creation workflow.",
         file_category.name or file_category.code
     )
-    _create_category_folders(file_category.name or file_category.code, auth_token=auth_token)
+    folder_creation_results = _create_category_folders(file_category.name or file_category.code, auth_token=auth_token)
 
     # Log activity
     current_user_id = get_jwt_identity()
@@ -281,7 +394,8 @@ def create_file_category(validated_data: FileCategoryCreateSchema):
 
     return jsonify({
         'message': 'File category created successfully',
-        'file_category': file_category.to_dict()
+        'file_category': file_category.to_dict(),
+        'folder_creation': folder_creation_results
     }), 201
 
 @file_categories_bp.route('/<category_id>', methods=['GET'])
@@ -434,21 +548,30 @@ def delete_all_file_categories():
 
 def _convert_to_backend_url(application_url: str) -> str:
     """
-    Convert application URL to backend URL format.
-    Example: https://doc-digitization.shothik.ai/r2/login -> https://doc-digitization.shothik.ai/r14-backend
+    Convert application URL to backend URL format by extracting the region slug.
+    Example: https://doc-digitization.shothik.ai/r2/login -> https://doc-digitization.shothik.ai/r2-backend
+    Example: https://doc-digitization.shothik.ai/r14/chat  -> https://doc-digitization.shothik.ai/r14-backend
     """
+    import re
     try:
         parsed = urlparse(application_url)
-        # Reconstruct URL with base domain and /r14-backend path
+        # Extract region slug (e.g., 'r2', 'r14') from the path
+        match = re.search(r'/(r\d+)', parsed.path)
+        if not match:
+            raise ValueError(f"Could not extract region slug from URL path: {parsed.path}")
+
+        region_slug = match.group(1)
         backend_url = urlunparse((
             parsed.scheme,
             parsed.netloc,
-            '/r14-backend',
+            f'/{region_slug}-backend',
             '',  # params
             '',  # query
             ''   # fragment
         ))
         return backend_url
+    except ValueError:
+        raise
     except Exception as e:
         raise ValueError(f"Invalid URL format: {application_url}. Error: {str(e)}")
 
