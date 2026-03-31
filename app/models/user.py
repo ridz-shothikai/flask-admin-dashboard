@@ -152,6 +152,19 @@ class User(BaseModel):
         
         return result
     
+    def to_dict_for_list(self):
+        """Lightweight dict for user list endpoint - NO apps/categories loading"""
+        return {
+            'id': self.id,
+            'email': self.email,
+            'role': self.role,
+            'status': self.status,
+            'first_name': self.first_name if hasattr(self, 'first_name') else None,
+            'last_name': self.last_name if hasattr(self, 'last_name') else None,
+            'created_date': self.created_date.isoformat() if hasattr(self, 'created_date') and self.created_date else None,
+            'last_login': self.last_login.isoformat() if hasattr(self, 'last_login') and self.last_login else None,
+        }
+
     def to_dict_simple(self):
         """Convert to dictionary without user counts for assigned_applications and assigned_file_categories (optimized for login API)"""
         result = {

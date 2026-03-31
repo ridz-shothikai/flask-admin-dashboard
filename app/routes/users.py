@@ -115,60 +115,8 @@ def get_users(validated_data: UserQuerySchema):
 
     # Get all users (Firestore doesn't support complex queries easily)
     all_users = User.get_all()
-    
-    # Collect all unique application IDs and file category IDs from all users
-    # Also pre-calculate user counts in a single pass for performance
-    all_app_ids = set()
-    all_category_ids = set()
-    app_user_counts = {}  # app_id -> count
-    category_user_counts = {}  # category_id -> count
-    
-    for user in all_users:
-        # Count applications
-        if hasattr(user, 'assigned_application_ids') and user.assigned_application_ids:
-            all_app_ids.update(user.assigned_application_ids)
-            for app_id in user.assigned_application_ids:
-                app_user_counts[app_id] = app_user_counts.get(app_id, 0) + 1
-        
-        # Count file categories
-        if hasattr(user, 'assigned_file_category_ids') and user.assigned_file_category_ids:
-            all_category_ids.update(user.assigned_file_category_ids)
-            for cat_id in user.assigned_file_category_ids:
-                category_user_counts[cat_id] = category_user_counts.get(cat_id, 0) + 1
-    
-    # Batch load all applications and file categories for performance
-    from app.db import get_db
-    db = get_db()
-    
-    applications_cache = {}
-    if all_app_ids:
-        from app.models.application import Application
-        # Use Firestore batch get for better performance
-        app_refs = [db.collection('applications').document(app_id) for app_id in all_app_ids]
-        if app_refs:
-            docs = db.get_all(app_refs)
-            for doc in docs:
-                if doc.exists:
-                    data = doc.to_dict()
-                    data['id'] = doc.id
-                    app = Application(**data)
-                    applications_cache[app.id] = app
-    
-    file_categories_cache = {}
-    if all_category_ids:
-        from app.models.file_category import FileCategory
-        # Use Firestore batch get for better performance
-        category_refs = [db.collection('file_categories').document(cat_id) for cat_id in all_category_ids]
-        if category_refs:
-            docs = db.get_all(category_refs)
-            for doc in docs:
-                if doc.exists:
-                    data = doc.to_dict()
-                    data['id'] = doc.id
-                    category = FileCategory(**data)
-                    file_categories_cache[category.id] = category
-    
-    # Apply filters
+
+    # Apply filters (no longer need to batch load apps/categories - loaded on demand via /permissions endpoint)
     filtered_users = all_users
     
     # Search filter
@@ -217,14 +165,7 @@ def get_users(validated_data: UserQuerySchema):
     pagination = _paginate_firestore(filtered_users, validated_data.page, validated_data.per_page)
 
     return jsonify({
-        'users': [
-            user.to_dict(
-                applications_cache=applications_cache,
-                file_categories_cache=file_categories_cache,
-                app_user_counts=app_user_counts,
-                category_user_counts=category_user_counts
-            ) for user in pagination['items']
-        ],
+        'users': [user.to_dict_for_list() for user in pagination['items']],
         'pagination': {
             'page': validated_data.page,
             'per_page': validated_data.per_page,
@@ -498,6 +439,110 @@ def get_user(user_id):
         }), 404
 
     return jsonify(user.to_dict()), 200
+
+
+@users_bp.route('/<user_id>/admin-permissions', methods=['GET'])
+@jwt_required()
+def get_user_admin_permissions(user_id):
+    """Get a user's assigned applications, file categories, and file management permissions (for admin panel on-demand loading)"""
+    error = require_superadmin()
+    if error:
+        return error
+
+    user = User.get_by_id(user_id)
+    if not user:
+        return jsonify({
+            'error': {
+                'code': 'USER_NOT_FOUND',
+                'message': f'User with id {user_id} not found'
+            }
+        }), 404
+
+    from app.db import get_db
+    db = get_db()
+
+    # Load assigned applications
+    apps = []
+    if user.role == 'superadmin':
+        all_apps_docs = db.collection('applications').stream()
+        for doc in all_apps_docs:
+            if doc.exists:
+                data = doc.to_dict()
+                apps.append({
+                    'id': doc.id,
+                    'name': data.get('name'),
+                    'url': data.get('url'),
+                    'status': data.get('status', 'active'),
+                })
+    elif hasattr(user, 'assigned_application_ids') and user.assigned_application_ids:
+        app_refs = [db.collection('applications').document(app_id) for app_id in user.assigned_application_ids]
+        if app_refs:
+            docs = db.get_all(app_refs)
+            for doc in docs:
+                if doc.exists:
+                    data = doc.to_dict()
+                    apps.append({
+                        'id': doc.id,
+                        'name': data.get('name'),
+                        'url': data.get('url'),
+                        'status': data.get('status', 'active'),
+                    })
+
+    # Load assigned file categories
+    categories = []
+    if user.role == 'superadmin':
+        all_cat_docs = db.collection('file_categories').stream()
+        for doc in all_cat_docs:
+            if doc.exists:
+                data = doc.to_dict()
+                if data.get('status') == 'active':
+                    categories.append({
+                        'id': doc.id,
+                        'code': data.get('code'),
+                        'name': data.get('name') or data.get('code'),
+                        'status': data.get('status', 'active'),
+                    })
+    elif hasattr(user, 'assigned_file_category_ids') and user.assigned_file_category_ids:
+        category_refs = [db.collection('file_categories').document(cat_id) for cat_id in user.assigned_file_category_ids]
+        if category_refs:
+            docs = db.get_all(category_refs)
+            for doc in docs:
+                if doc.exists:
+                    data = doc.to_dict()
+                    categories.append({
+                        'id': doc.id,
+                        'code': data.get('code'),
+                        'name': data.get('name') or data.get('code'),
+                        'status': data.get('status', 'active'),
+                    })
+
+    # Load file management permissions and region_id
+    file_management_permissions = user.file_management_permissions if hasattr(user, 'file_management_permissions') else {
+        'can_rename_source': False,
+        'can_delete_source': False,
+        'can_upload': False,
+        'can_create_root_folder_source': False,
+        'can_create_folder_source': False,
+        'can_delete_destination': False,
+        'can_create_root_folder_destination': False,
+        'can_create_folder_destination': False,
+        'can_transfer': True,
+        'can_view_all_transfer_history': False
+    }
+
+    # Add last used region info
+    from app.models.region_usage import RegionUsage
+    from app.models.application import Application
+    last_usage = RegionUsage.get_by_user_id(user.id)
+    region_id = last_usage.application_id if last_usage else None
+
+    return jsonify({
+        'user_id': user_id,
+        'assigned_applications': apps,
+        'assigned_file_categories': categories,
+        'file_management_permissions': file_management_permissions,
+        'region_id': region_id
+    }), 200
 
 
 @users_bp.route('/<user_id>', methods=['PUT'])
