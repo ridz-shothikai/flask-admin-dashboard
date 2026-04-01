@@ -727,6 +727,10 @@ def delete_user(user_id):
     )
     activity.save()
 
+    return jsonify({
+        'message': 'User deleted successfully'
+    }), 200
+
 @users_bp.route('/last-region', methods=['POST'])
 @jwt_required()
 @validate_json_body(LastRegionSchema)
