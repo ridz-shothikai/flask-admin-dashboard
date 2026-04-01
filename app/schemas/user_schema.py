@@ -157,9 +157,17 @@ class UserUpdateSchema(BaseModel):
     def check_at_least_one_field(self):
         """Ensure at least one field is provided"""
         if not any([
-            self.email, self.password, self.role, self.status,
-            self.first_name, self.last_name, self.application_ids, 
-            self.file_category_ids, self.file_management_permissions
+            self.email is not None,
+            self.password is not None,
+            self.role is not None,
+            self.status is not None,
+            self.first_name is not None,
+            self.last_name is not None,
+            self.last_accessed_region is not None,
+            self.application_ids is not None,
+            self.file_category_ids is not None,
+            self.file_management_permissions is not None,
+            self.admin_panel_access_permission is not None,
         ]):
             raise ValueError('At least one field must be provided for update')
         return self
